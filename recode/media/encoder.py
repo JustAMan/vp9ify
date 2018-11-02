@@ -5,8 +5,54 @@ import subprocess
 import errno
 
 from ..helpers import which
-from ..tasks import ParallelTask
+from ..tasks import IParallelTask
 from .info import MediaInfo
+
+class CommandTask(IParallelTask):
+    BLOCKERS = {
+        'extract_audio_tracks': [],
+        'run_audio_transcode_cmd': ['extract_audio_tracks'],
+        'run_remux_cmd': ['run_video_transcode_cmd', 'run_audio_transcode_cmd'],
+        'run_extract_subtitles': [],
+        'cleanup_tempfiles': ['run_remux_cmd']
+    }
+
+    def __init__(self, media, method, cost, *args):
+        self.method = method
+        self.media = media
+        self.args = args
+        self.cost = cost
+        self.task_name = self.method.__func__.__code__.co_name
+        self.must_be_running = False
+
+    def __eq__(self, other):
+        if not isinstance(other, CommandTask):
+            return False
+        return self.method == other.method and self.media == other.media and self.args == other.args
+
+    def __call__(self):
+        return self.method(*self.args)
+
+    def __str__(self):
+        return '%s (%s)' % (self.task_name, self.media.friendly_name)
+
+    def can_run(self, all_tasks):
+        blocker_names = set(self.BLOCKERS[self.task_name])
+        blockers = [t for t in all_tasks if isinstance(t, CommandTask) and t.task_name in blocker_names]
+        return not blockers
+
+class VideoTranscodeTask(CommandTask):
+    def __init__(self, media, method, cost, is_first_pass, *args):
+        CommandTask.__init__(self, media, method, cost, is_first_pass, *args)
+        self.is_first_pass = is_first_pass
+        self.must_be_running = True
+
+    def __str__(self):
+        return '%s pass=%d (%s)' % (self.task_name, 1 if self.is_first_pass else 2, self.media.friendly_name)
+
+    def can_run(self, all_tasks):
+        all_transcodes = [t for t in all_tasks if isinstance(t, VideoTranscodeTask)]
+        return all_transcodes[0] == self
 
 class MediaEncoder(object):
     # reverse-engineered VP9-recommended CRF-from-video-height
@@ -176,34 +222,8 @@ class MediaEncoder(object):
                 if err.errno != errno.ENOENT:
                     raise
 
-    def __describe_task(self, task):
-        name = task.func.__func__.__code__.co_name
-        if name == 'run_video_transcode_cmd':
-            name += ' pass=%d' % (1 if task.args[0] else 2)
-        return '%s (%s)' % (name, self.media.friendly_name)
-
-    BLOCKERS = {
-        'extract_audio_tracks': [],
-        'run_audio_transcode_cmd': ['extract_audio_tracks'],
-        'run_remux_cmd': ['run_video_transcode_cmd', 'run_audio_transcode_cmd'],
-        'run_extract_subtitles': [],
-        'cleanup_tempfiles': ['run_remux_cmd']
-    }
-    def __can_run(self, task, all_tasks):
-        all_tasks = [t for t in all_tasks if t]
-        current = task.func.__func__.__code__.co_name
-        if current == 'run_video_transcode_cmd':
-            # transcode can run if it's the first one of all transcodes that are not over yet,
-            # as subsequent runs of it are dependant on previous ones
-            all_transcodes = [t for t in all_tasks if t.func.__func__.__code__.co_name == current]
-            return all_transcodes[0] == task
-        # if it is not transcoding see if there's no blockers left
-        blocker_names = set(self.BLOCKERS[current])
-        blockers = [t for t in all_tasks if t.func.__func__.__code__.co_name in blocker_names]
-        return not blockers
-
-    def __make_task(self, cost, method, *args, **kw):
-        return ParallelTask(func=method, args=args, kw=kw, cost=cost, describe=self.__describe_task, can_run=self.__can_run)
+    def __make_task(self, cost, method, *args):
+        return (VideoTranscodeTask if method == self.run_video_transcode_cmd else CommandTask)(self.media, method, cost, *args)
 
     def make_tasks(self, dest, stdout=None):
         return [self.__make_task(1.5, self.run_video_transcode_cmd, True, stdout),

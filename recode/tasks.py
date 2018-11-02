@@ -10,7 +10,15 @@ except ImportError:
 
 from .helpers import NUM_THREADS
 
-ParallelTask = collections.namedtuple('ParallelTask', 'func args kw cost describe can_run')
+class IParallelTask:
+    cost = 0
+    must_be_running = False
+    def __call__(self):
+        raise NotImplementedError()
+    def __str__(self):
+        raise NotImplementedError()
+    def can_run(self, all_tasks):
+        raise NotImplementedError()
 
 class Executor:
     def __init__(self, resume_file):
@@ -28,7 +36,7 @@ class Executor:
             for list_idx, tasklist in enumerate(self.tasklists):
                 not_done = self.unfinished[list_idx]
                 for task_idx, task in enumerate(tasklist):
-                    if task and task.cost <= self.power and task.can_run(task, not_done):
+                    if task and task.cost <= self.power and task.can_run(not_done):
                         candidates.append((-task.cost, list_idx, task_idx, task))
             if candidates:
                 _, list_idx, task_idx, task = min(candidates)
@@ -45,10 +53,10 @@ class Executor:
                 out.write(pickle.dumps(self.unfinished))
 
     def __run_task(self, list_idx, task_idx, task):
-        descr = str(task) if not task.describe else task.describe(task)
+        descr = str(task)
         print 'Running %s' % descr
         try:
-            task.func(*task.args, **task.kw)
+            task()
         except:
             print 'Error in %s' % descr
             raise
