@@ -11,8 +11,8 @@ from .info import MediaInfo
 
 class CommandTask(IParallelTask):
     BLOCKERS = {
-        'extract_audio_tracks': [],
-        'run_audio_transcode_cmd': ['extract_audio_tracks'],
+        'prepare_audio_tracks': [],
+        'run_audio_transcode_cmd': ['prepare_audio_tracks'],
         'run_remux_cmd': ['run_video_transcode_cmd', 'run_audio_transcode_cmd'],
         'run_extract_subtitles': [],
         'cleanup_tempfiles': ['run_remux_cmd']
@@ -144,13 +144,13 @@ class MediaEncoder(object):
         speed = self.media.SPEED_FIRST if is_first_pass else self.media.SPEED_SECOND
         passno = 1 if is_first_pass else 2
 
-        cmd = [self._FFMPEG, '-i', self.src, '-tile-columns', 2, '-g', 240, '-threads', 6,
+        cmd = [self._FFMPEG, '-i', self.src, '-g', 240,
                '-movflags', '+faststart', '-map', '0:v', '-c:v', 'libvpx-vp9', '-an', '-crf', int(crf),
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
                '-passlogfile', self.tempfile('ffmpeg2pass', 'log'), '-y', self.tempfile('vp9-audio=no')]
         self.__run_command(cmd, stdout)
 
-    def extract_audio_tracks(self, stdout=None):
+    def prepare_audio_tracks(self, stdout=None):
         channels = self.info.get_audio_channels()
         for track_id, channel_count in channels.items():
             if channel_count == 2: # extract stereo as-is
@@ -235,9 +235,9 @@ class MediaEncoder(object):
         return (VideoTranscodeTask if method == self.run_video_transcode_cmd else CommandTask)(self.media, method, cost, *args)
 
     def make_tasks(self, dest, stdout=None):
-        return [self.__make_task(1.5, self.run_video_transcode_cmd, True, stdout),
-                self.__make_task(4, self.run_video_transcode_cmd, False, stdout),
-                self.__make_task(1, self.extract_audio_tracks, stdout),
+        return [self.__make_task(1.2, self.run_video_transcode_cmd, True, stdout),
+                self.__make_task(1.2, self.run_video_transcode_cmd, False, stdout),
+                self.__make_task(1, self.prepare_audio_tracks, stdout),
                 self.__make_task(1, self.run_audio_transcode_cmd, stdout),
                 self.__make_task(1, self.run_remux_cmd, dest, stdout),
                 self.__make_task(0.5, self.run_extract_subtitles, dest, stdout),
