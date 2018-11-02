@@ -23,7 +23,7 @@ class CommandTask(IParallelTask):
         self.args = args
         self.cost = cost
         self.task_name = self.method.__func__.__code__.co_name
-        self.must_be_running = False
+        self.is_primary = False
 
     def __eq__(self, other):
         if not isinstance(other, CommandTask):
@@ -45,7 +45,7 @@ class VideoTranscodeTask(CommandTask):
     def __init__(self, media, method, cost, is_first_pass, *args):
         CommandTask.__init__(self, media, method, cost, is_first_pass, *args)
         self.is_first_pass = is_first_pass
-        self.must_be_running = True
+        self.is_primary = True
 
     def __str__(self):
         return '%s pass=%d (%s)' % (self.task_name, 1 if self.is_first_pass else 2, self.media.friendly_name)
