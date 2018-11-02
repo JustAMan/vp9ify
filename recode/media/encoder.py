@@ -81,19 +81,15 @@ class MediaEncoder(object):
     Manually invented qmax = crf * 4 / 3, ffmpeg option: "-qmax value"
     For better (probably) quality: 1080p -> crf=24
 
-    ffmpeg option:
-    -passlogfile prefix
-    Set two-pass log file name prefix to prefix, the default file name prefix is ``ffmpeg2pass''. The
-    complete file name will be PREFIX-N.log, where N is a number specific to the output stream.
-
     Current approach of encoding the file:
         $FFMPEG_PATH -i "$1" -tile-columns 2 -g 240 -threads 6 -movflags +faststart -max_muxing_queue_size 4000 -map 0:v -c:v libvpx-vp9 -an -crf 24 -qmax 32 -b:v 0 -quality good -speed 5 -pass 1 -y "$TARGET_NOEXT-vp9-audio=no.mkv"
         $FFMPEG_PATH -i "$1" -tile-columns 2 -g 240 -threads 6 -movflags +faststart -max_muxing_queue_size 4000 -map 0:v -c:v libvpx-vp9 -an -crf 24 -qmax 32 -b:v 0 -quality good -speed 2 -pass 2 -y "$TARGET_NOEXT-vp9-audio=no.mkv"
         $FFMPEG_NORM "$1" -c:a libvorbis -b:a 192k -e="-aq 5" -t -14 -vn -f -ar 48000 -pr -o "$TARGET_NOEXT-vorbis-video=no.mkv"
         $FFMPEG_PATH -i "$TARGET_NOEXT-vp9-audio=no.mkv" -i "$TARGET_NOEXT-vorbis-video=no.mkv" -map 0:v -map 1:a -c copy -y "$2"
 
+    Burn subs in:
+        $FFMPEG_PATH -i 60sec.mkv -max_muxing_queue_size 4000 -filter_complex '[0:v][0:s:0]overlay[v]' -map '[v]' -map 0:a -sn -c:v libx264 -crf 24 -c:a copy 60sec-subs-burned.mkv -y
     '''
-
 
     def run_video_transcode_cmd(self, is_first_pass, stdout=None):
         crf = (self.CRF_PROP * self.info.get_video_diagonal() ** self.CRF_POW) * self.media.TARGET_1080_QUALITY / self.CRF_VP9_1080P
@@ -123,7 +119,7 @@ class MediaEncoder(object):
             if channel_count == 2:
                 # normalize only stereo, nothing else
                 cmd = [self._FFMPEG_NORM, self.tempfile('audio-%d' % track_id),
-                    '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e="-aq %s"' % self.media.AUDIO_QUALITY,
+                    '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e=-aq %s' % self.media.AUDIO_QUALITY,
                     '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                     '-o', self.tempfile('audio-%d' % track_id), '-vn']
             else:

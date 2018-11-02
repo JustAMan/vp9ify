@@ -9,7 +9,7 @@ class MediaEntry(object):
     SPEED_SECOND = 1
 
     # Value of -crf for VP9 *if* video would be 1080p (recalculated according to video size)
-    TARGET_1080_QUALITY = 21
+    TARGET_1080_QUALITY = 23
 
     class UnknownFile(Exception):
         pass
