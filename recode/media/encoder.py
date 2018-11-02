@@ -169,7 +169,7 @@ class MediaEncoder(object):
         return ParallelTask(func=method, args=args, kw=kw, cost=cost, describe=self.__describe_task)
 
     def make_tasks(self, dest, stdout=None):
-        return [self.__make_task(NUM_THREADS, self.run_video_transcode_cmd, True, stdout),
+        return [self.__make_task(1.5, self.run_video_transcode_cmd, True, stdout),
                 self.__make_task(NUM_THREADS, self.run_video_transcode_cmd, False, stdout),
                 self.__make_task(1, self.run_audio_transcode_cmd, stdout),
                 self.__make_task(1, self.run_remux_cmd, dest, stdout),

@@ -50,7 +50,7 @@ def main():
     if not args.state:
         if not args.source:
             sys.exit("Please specify either SRC_PATH or --state")
-        resume_file = os.path.join(args.source, 'tasks.pickle')
+        resume_file = os.path.abspath(os.path.join(args.source, 'tasks.pickle'))
     else:
         resume_file = os.path.abspath(args.state)
     if args.resume and args.log:
@@ -60,7 +60,7 @@ def main():
     if not args.resume:
         if not args.source or not args.dest:
             sys.exit('You must specify both SRC_PATH and DEST_PATH when running without --resume')
-        inp = get_files(args.source)
+        inp = get_files(os.path.abspath(args.source))
         suffix = get_suffix(inp)
 
         entries = []
@@ -76,7 +76,7 @@ def main():
 
         logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
         for entry in entries:
-            tasks.append(MediaEncoder(entry).make_tasks(args.dest, logpath))
+            tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), logpath))
         with open(resume_file, 'wb') as out:
             out.write(pickle.dumps(tasks))
 
