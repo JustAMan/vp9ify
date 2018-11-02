@@ -29,9 +29,9 @@ class Executor:
                 not_done = self.unfinished[list_idx]
                 for task_idx, task in enumerate(tasklist):
                     if task and task.cost <= self.power and task.can_run(task, not_done):
-                        candidates.append((-task.cost, task_idx, list_idx, task))
+                        candidates.append((-task.cost, list_idx, task_idx, task))
             if candidates:
-                _, task_idx, list_idx, task = min(candidates)
+                _, list_idx, task_idx, task = min(candidates)
                 self.power -= task.cost
                 self.tasklists[list_idx][task_idx] = None
                 return list_idx, task_idx, task

@@ -133,9 +133,12 @@ class MediaEncoder(object):
     def run_remux_cmd(self, dest, stdout=None):
         ''' this produces result file '''
         channels = self.info.get_audio_channels()
-        cmd = [self._FFMPEG, '-i', self.tempfile('vp9-audio=no'), '-movflags', '+faststart', '-map', '0:v', '-c:v', 'copy']
+        cmd = [self._FFMPEG, '-i', self.tempfile('vp9-audio=no')]
         for idx, track_id in enumerate(channels):
-            cmd.extend(['-i', self.tempfile('audio-%d' % track_id), '-map', '%d:a' % (idx + 1)])
+            cmd.extend(['-i', self.tempfile('audio-%d' % track_id)])
+        cmd.extend(['-movflags', '+faststart', '-map', '0:v', '-c:v', 'copy'])
+        for idx, track_id in enumerate(channels):
+            cmd.extend(['-map', '%d:a' % (idx + 1)])
         cmd.extend(['-c:a', 'copy', '-y', self.media.get_target_video_path(dest)])
         self.__run_command(cmd, stdout)
 

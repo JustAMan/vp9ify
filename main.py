@@ -37,7 +37,7 @@ def get_files(src):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Transecode some videos for storing')
+    parser = argparse.ArgumentParser(description='Transcode some videos for storing')
     parser.add_argument('source', metavar='SRC_PATH', type=str, nargs='?', help='Path to source directory with *.mkv inside')
     parser.add_argument('dest', metavar='DEST_PATH', type=str,  nargs='?',help='Path to target directory for this type of content (e.g. not including series name)')
     parser.add_argument('--resume', action='store_true', help='Resume unfinished recoding')
