@@ -113,7 +113,7 @@ class MediaEncoder(object):
             # extract only stereo, everything else would be taken from source
             if channel_count != 2:
                 continue
-            cmd = [self._FFMPEG, '-i', self.src, '-map', '0:a:%d' % track_id, '-c:a', 'copy', '-vn', '-y', self.tempfile('audio-%d' % track_id)]
+            cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'copy', '-vn', '-y', self.tempfile('audio-%d' % track_id)]
             self.__run_command(cmd, stdout)
 
     def run_audio_transcode_cmd(self, stdout=None):
@@ -129,7 +129,7 @@ class MediaEncoder(object):
             else:
                 # just re-encode as libvorbis
                 cmd = [self._FFMPEG, '-i', self.src,
-                    '-map', '0:a:%d' % track_id, '-vn',
+                    '-map', '0:%d:0' % track_id, '-vn',
                     '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-aq', self.media.AUDIO_QUALITY,
                     '-y', self.tempfile('audio-%d' % track_id)]
             self.__run_command(cmd, stdout)
@@ -137,7 +137,7 @@ class MediaEncoder(object):
     def run_remux_cmd(self, dest, stdout=None):
         ''' this produces result file '''
         channels = self.info.get_audio_channels()
-        cmd = [self._FFMPEG, '-i', self.tempfile('vp9-audio=no'), '-map', '0:v', '-c:v', 'copy']
+        cmd = [self._FFMPEG, '-i', self.tempfile('vp9-audio=no'), '-movflags', '+faststart', '-map', '0:v', '-c:v', 'copy']
         for idx, track_id in enumerate(channels):
             cmd.extend(['-i', self.tempfile('audio-%d' % track_id), '-map', '%d:a' % (idx + 1)])
         cmd.extend(['-c:a', 'copy', '-y', self.media.get_target_video_path(dest)])

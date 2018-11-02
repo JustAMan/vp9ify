@@ -26,8 +26,9 @@ class Executor:
         with self.lock:
             candidates = []
             for list_idx, tasklist in enumerate(self.tasklists):
+                not_done = self.unfinished[list_idx]
                 for task_idx, task in enumerate(tasklist):
-                    if task and task.cost <= self.power and task.can_run(task, tasklist):
+                    if task and task.cost <= self.power and task.can_run(task, not_done):
                         candidates.append((-task.cost, task_idx, list_idx, task))
             if candidates:
                 _, task_idx, list_idx, task = min(candidates)
