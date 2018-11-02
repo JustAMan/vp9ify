@@ -8,7 +8,24 @@ If you want to read the rationale behind this tool - continue to [idea section](
 I have no use for it on Windows, but if there would be demand I might consider making it cross-platform (which is not so hard, thanks for Python nature).
 
 # Usage
-Would be filled later when all code is here.
+```sh
+python main.py [-h] [--resume] [--state STATE_FILENAME] [--log LOG_FILENAME]
+               [--nostart] [--debug]
+               [SRC_PATH] [DEST_PATH]
+```
+
+Positional arguments:
+* `SRC_PATH` - path to source directory with \*.mkv inside (optional if `--resume` specified, ignored if `--resume --state` specified)
+* `DEST_PATH` - path to target directory for this type of content (e.g. not including series name) (ignored if `--resume` specified)
+
+Optional arguments:
+* `-h`, `--help` - show help message
+* `--resume` - Resume unfinished recoding
+* `--state STATE_FILENAME` - path to file where state to be stored
+* `--log LOG_FILENAME` - path pattern to store transcoding logs at
+* `--nostart` - do not start encoding, just create state file for resuming later (useful if you want to add multiple source/dest pairs and then run a loooooong transcoding process)
+* `--debug` - produce some additional debug output
+
 
 # Rationale
 
