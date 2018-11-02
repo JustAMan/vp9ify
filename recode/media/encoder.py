@@ -3,6 +3,7 @@ import tempfile
 import sys
 import subprocess
 import errno
+import glob
 
 from ..helpers import which
 from ..tasks import IParallelTask
@@ -221,6 +222,14 @@ class MediaEncoder(object):
             except OSError as err:
                 if err.errno != errno.ENOENT:
                     raise
+                # try to wipe 2pass log files
+                for fname in glob.glob(tempfile + '-*.log'):
+                    try:
+                        os.unlink(fname)
+                    except OSError as err:
+                        if err.errno != errno.ENOENT:
+                            raise
+
 
     def __make_task(self, cost, method, *args):
         return (VideoTranscodeTask if method == self.run_video_transcode_cmd else CommandTask)(self.media, method, cost, *args)
