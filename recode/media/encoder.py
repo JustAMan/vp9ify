@@ -106,10 +106,16 @@ class MediaEncoder(object):
     def extract_audio_tracks(self, stdout=None):
         channels = self.info.get_audio_channels()
         for track_id, channel_count in channels.items():
-            # extract only stereo, everything else would be taken from source
-            if channel_count != 2:
-                continue
-            cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'copy', '-vn', '-y', self.tempfile('audio-%d' % track_id)]
+            if channel_count == 2: # extract stereo as-is
+                cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'copy', '-vn', '-y', self.tempfile('audio-%d' % track_id)]
+            else:
+                # extract other audio tracks with downmixing to stereo for normalizing, so that we have all tracks
+                # that are normalized (normalizing a properly designed 5.1 audio means destroying its quality, but
+                # having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware)
+                cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'aac', '-b:a', self.media.AUDIO_INTERMEDIATE_BITRATE,
+                       '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
+                       '-vn', '-y', self.tempfile('audio-%d-2ch' % track_id)]
+
             self.__run_command(cmd, stdout)
 
     def run_audio_transcode_cmd(self, stdout=None):
@@ -117,28 +123,40 @@ class MediaEncoder(object):
         channels = self.info.get_audio_channels()
         for track_id, channel_count in channels.items():
             if channel_count == 2:
-                # normalize only stereo, nothing else
                 cmd = [self._FFMPEG_NORM, self.tempfile('audio-%d' % track_id),
                     '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e=-aq %s' % self.media.AUDIO_QUALITY,
                     '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                     '-o', self.tempfile('audio-%d' % track_id), '-vn']
             else:
-                # just re-encode as libvorbis
+                # re-encode original as libvorbis, normalize downmixed
                 cmd = [self._FFMPEG, '-i', self.src,
                     '-map', '0:%d:0' % track_id, '-vn',
                     '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-aq', self.media.AUDIO_QUALITY,
                     '-y', self.tempfile('audio-%d' % track_id)]
+                self.__run_command(cmd, stdout)
+
+                cmd = [self._FFMPEG_NORM, self.tempfile('audio-%d-2ch' % track_id),
+                    '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e=-aq %s' % self.media.AUDIO_QUALITY,
+                    '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
+                    '-o', self.tempfile('audio-%d-2ch' % track_id), '-vn']
             self.__run_command(cmd, stdout)
 
     def run_remux_cmd(self, dest, stdout=None):
         ''' this produces result file '''
         channels = self.info.get_audio_channels()
         cmd = [self._FFMPEG, '-i', self.tempfile('vp9-audio=no')]
-        for idx, track_id in enumerate(channels):
+    
+        total_audio = 0
+        for track_id, channel_count in channels.items():
             cmd.extend(['-i', self.tempfile('audio-%d' % track_id)])
+            total_audio += 1
+            if channel_count != 2:
+                cmd.extend(['-i', self.tempfile('audio-%d-2ch' % track_id)])
+                total_audio += 1
         cmd.extend(['-movflags', '+faststart', '-map', '0:v', '-c:v', 'copy'])
-        for idx, track_id in enumerate(channels):
-            cmd.extend(['-map', '%d:a' % (idx + 1)])
+        for number in range(1, total_audio + 1):
+            cmd.extend(['-map', '%d:a' % number])
+    
         cmd.extend(['-c:a', 'copy', '-y', self.media.get_target_video_path(dest)])
         self.__run_command(cmd, stdout)
 
