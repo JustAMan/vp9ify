@@ -10,7 +10,7 @@ except ImportError:
 
 from .helpers import NUM_THREADS
 
-ParallelTask = collections.namedtuple('ParallelTask', 'func args kw cost describe')
+ParallelTask = collections.namedtuple('ParallelTask', 'func args kw cost describe can_run')
 
 class Executor:
     def __init__(self, resume_file):
@@ -19,29 +19,31 @@ class Executor:
             self.tasklists = pickle.loads(inp.read())
 
         self.unfinished = copy.deepcopy(self.tasklists)
-        self.running = set()
         self.power = NUM_THREADS
         self.lock = threading.RLock()
 
     def __pop_next_task(self):
         with self.lock:
-            candidates = [(-tasks[0].cost, idx, tasks[0]) for (idx, tasks) in enumerate(self.tasklists) if tasks and idx not in self.running and tasks[0].cost <= self.power]
+            candidates = []
+            for list_idx, tasklist in enumerate(self.tasklists):
+                for task_idx, task in enumerate(tasklist):
+                    if task and task.cost <= self.power and task.can_run(task, tasklist):
+                        candidates.append((-task.cost, task_idx, list_idx, task))
             if candidates:
-                _, idx, task = min(candidates)
+                _, task_idx, list_idx, task = min(candidates)
                 self.power -= task.cost
-                self.tasklists[idx].pop(0)
-                self.running.add(idx)
-                return idx, task
-        return None, None
+                self.tasklists[list_idx][task_idx] = None
+                return list_idx, task_idx, task
+        return None, None, None
 
-    def __mark_finished(self, idx, task):
+    def __mark_finished(self, list_idx, task_idx, task):
         with self.lock:
-            assert self.unfinished[idx][0] == task
-            self.unfinished[idx].pop(0)
+            assert self.unfinished[list_idx][task_idx] == task
+            self.unfinished[list_idx][task_idx] = None
             with open(self.resume_file, 'wb') as out:
                 out.write(pickle.dumps(self.unfinished))
 
-    def __run_task(self, idx, task):
+    def __run_task(self, list_idx, task_idx, task):
         descr = str(task) if not task.describe else task.describe(task)
         print 'Running %s' % descr
         try:
@@ -51,21 +53,24 @@ class Executor:
             raise
         else:
             print 'Stopped %s' % descr
-            self.__mark_finished(idx, task)
+            self.__mark_finished(list_idx, task_idx, task)
         finally:
             with self.lock:
                 self.power += task.cost
-                self.running.remove(idx)
     
     def execute(self):
         threads = []
         while True:
             with self.lock:
-                if not any(self.tasklists):
+                remaining = []
+                for tasklist in self.tasklists:
+                    remaining.extend(task for task in tasklist if task)
+                if not remaining:
                     break
-                idx, task = self.__pop_next_task()
+
+                list_idx, task_idx, task = self.__pop_next_task()
                 if task:
-                    th = threading.Thread(target=self.__run_task, args=(idx, task))
+                    th = threading.Thread(target=self.__run_task, args=(list_idx, task_idx, task))
                     th.start()
                     threads.append(th)
             time.sleep(0.2)

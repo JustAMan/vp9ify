@@ -165,14 +165,35 @@ class MediaEncoder(object):
             name += ' pass=%d' % (1 if task.args[0] else 2)
         return '%s (%s)' % (name, self.media.friendly_name)
 
+    BLOCKERS = {
+        'extract_audio_tracks': [],
+        'run_audio_transcode_cmd': ['extract_audio_tracks'],
+        'run_remux_cmd': ['run_video_transcode_cmd', 'run_audio_transcode_cmd'],
+        'run_extract_subtitles': [],
+        'cleanup_tempfiles': ['run_remux_cmd']
+    }
+    def __can_run(self, task, all_tasks):
+        all_tasks = [t for t in all_tasks if t]
+        current = task.func.__func__.__code__.co_name
+        if current == 'run_video_transcode_cmd':
+            # transcode can run if it's the first one of all transcodes that are not over yet,
+            # as subsequent runs of it are dependant on previous ones
+            all_transcodes = [t for t in all_tasks if t.func.__func__.__code__.co_name == current]
+            return all_transcodes[0] == task
+        # if it is not transcoding see if there's no blockers left
+        blocker_names = set(self.BLOCKERS[current])
+        blockers = [t for t in all_tasks if t.func.__func__.__code__.co_name in blocker_names]
+        return not blockers
+
     def __make_task(self, cost, method, *args, **kw):
-        return ParallelTask(func=method, args=args, kw=kw, cost=cost, describe=self.__describe_task)
+        return ParallelTask(func=method, args=args, kw=kw, cost=cost, describe=self.__describe_task, can_run=self.__can_run)
 
     def make_tasks(self, dest, stdout=None):
         return [self.__make_task(1.5, self.run_video_transcode_cmd, True, stdout),
                 self.__make_task(4, self.run_video_transcode_cmd, False, stdout),
+                self.__make_task(1, self.extract_audio_tracks, stdout),
                 self.__make_task(1, self.run_audio_transcode_cmd, stdout),
                 self.__make_task(1, self.run_remux_cmd, dest, stdout),
-                self.__make_task(0, self.run_extract_subtitles, dest, stdout),
+                self.__make_task(0.5, self.run_extract_subtitles, dest, stdout),
                 self.__make_task(0, self.cleanup_tempfiles)
             ]
