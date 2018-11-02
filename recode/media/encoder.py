@@ -4,7 +4,7 @@ import sys
 import subprocess
 import errno
 
-from ..helpers import which, NUM_THREADS
+from ..helpers import which
 from ..tasks import ParallelTask
 from .info import MediaInfo
 
@@ -101,7 +101,7 @@ class MediaEncoder(object):
         speed = self.media.SPEED_FIRST if is_first_pass else self.media.SPEED_SECOND
         passno = 1 if is_first_pass else 2
 
-        cmd = [self._FFMPEG, '-i', self.src, '-tile-columns', 2, '-g', 240, '-threads', NUM_THREADS,
+        cmd = [self._FFMPEG, '-i', self.src, '-tile-columns', 2, '-g', 240, '-threads', 6,
                '-movflags', '+faststart', '-map', '0:v', '-c:v', 'libvpx-vp9', '-an', '-crf', int(crf),
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
                '-passlogfile', self.tempfile('ffmpeg2pass', 'log'), '-y', self.tempfile('vp9-audio=no')]
@@ -170,7 +170,7 @@ class MediaEncoder(object):
 
     def make_tasks(self, dest, stdout=None):
         return [self.__make_task(1.5, self.run_video_transcode_cmd, True, stdout),
-                self.__make_task(NUM_THREADS, self.run_video_transcode_cmd, False, stdout),
+                self.__make_task(4, self.run_video_transcode_cmd, False, stdout),
                 self.__make_task(1, self.run_audio_transcode_cmd, stdout),
                 self.__make_task(1, self.run_remux_cmd, dest, stdout),
                 self.__make_task(0, self.run_extract_subtitles, dest, stdout),

@@ -25,14 +25,13 @@ class Executor:
 
     def __pop_next_task(self):
         with self.lock:
-            candidates = [(-tasks[0].cost, idx, tasks[0]) for (idx, tasks) in enumerate(self.tasklists) if tasks and idx not in self.running]
+            candidates = [(-tasks[0].cost, idx, tasks[0]) for (idx, tasks) in enumerate(self.tasklists) if tasks and idx not in self.running and tasks[0].cost <= self.power]
             if candidates:
                 _, idx, task = min(candidates)
-                if task.cost <= self.power:
-                    self.power -= task.cost
-                    self.tasklists[idx].pop(0)
-                    self.running.add(idx)
-                    return idx, task
+                self.power -= task.cost
+                self.tasklists[idx].pop(0)
+                self.running.add(idx)
+                return idx, task
         return None, None
 
     def __mark_finished(self, idx, task):
