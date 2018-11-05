@@ -212,7 +212,7 @@ class MediaEncoder(object):
         if subtitles:
             cmd = [which('mkvextract'), 'tracks', self.src]
             for sub in subtitles:
-                cmd.append('%s:%s' % (sub.track_id, self.media.get_target_subtitles_path(dest, sub.name)))
+                cmd.append('%s:%s' % (sub.track_id, self.media.get_target_subtitles_path(dest, sub.language)))
             self.__run_command(cmd, stdout)
 
     def cleanup_tempfiles(self):

@@ -31,21 +31,27 @@ class MediaInfo:
 
         return cls(path, info, tracks)
 
+    @staticmethod
+    def __get_unique_name(name, seen):
+        if name in seen:
+            idx = 1
+            while '%s_%d' % (name, idx) in seen:
+                idx += 1
+            name = '%s_%d' % (name, idx)
+        seen.add(name)
+        return name
+
     def get_subtitles(self):
         result = []
-        seen_names = set()
+        seen_names, seen_langs = set(), set()
         for track in self.tracks:
             if track['codec'] == 'SubRip/SRT':
-                name = track['properties'].get('track_name', track['properties']['language'])
-                if name in seen_names:
-                    idx = 1
-                    while '%s_%d' % (name, idx) in seen_names:
-                        idx += 1
-                    name = '%s_%d' % (name, idx)
-                seen_names.add(name)
+                lang = track['properties']['language']
+                name = track['properties'].get('track_name', lang)
+                lang = self.__get_unique_name(lang, seen_langs)
+                name = self.__get_unique_name(name, seen_names)
                 result.append(SubtitleInfo(track_id=track['id'],
-                                           name=name,
-                                           language=track['properties']['language']))
+                                           name=name, language=lang))
         return result
 
     def get_audio_channels(self):
