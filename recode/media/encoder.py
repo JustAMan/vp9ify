@@ -64,7 +64,7 @@ class MediaEncoder(object):
     # CRF = (CRF_PROP * video_diagonal ** CRF_POW) / (CRF_VP9_1080P / TARGET_1080_QUALITY)
 
     # Manually invented qmax = crf * 4 / 3, ffmpeg option: "-qmax value"
-    QMAX_COEFF = 4./3.
+    QMAX_COEFF = 5./4.
     # QMAX = CRF * QMAX_COEFF
 
     _FFMPEG = which('ffmpeg', 'FFMPEG_PATH')
