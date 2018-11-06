@@ -5,7 +5,7 @@ import subprocess
 import errno
 import glob
 
-from ..helpers import which
+from ..helpers import which, open_with_dir, ensuredir
 from ..tasks import IParallelTask
 from .info import MediaInfo
 
@@ -86,8 +86,10 @@ class MediaEncoder(object):
             return NotImplemented
         return self.media == other.media
 
-    def tempfile(self, suffix='', ext='mkv'):
-        path = os.path.join(tempfile.gettempdir(), '%s.%s.%s' % (self.media.friendly_name, suffix, ext))
+    def make_tempfile(self, suffix='', ext='mkv'):
+        tmpdir = tempfile.gettempdir()
+        ensuredir(tmpdir)
+        path = os.path.join(tmpdir, '%s.%s.%s' % (self.media.friendly_name, suffix, ext))
         if path not in self.tempfiles:
             self.tempfiles.append(path)
         return path
@@ -107,7 +109,7 @@ class MediaEncoder(object):
             print "[DBG] running command: %s (logs to: %s)" % (subprocess.list2cmdline(cmd), stdout)
         if sys.platform != 'win32':
             if stdout is not None:
-                stdout = open(stdout, 'a')
+                stdout = open_with_dir(stdout, 'a')
             try:
                 subprocess.check_call(cmd, stdout=stdout, stderr=subprocess.STDOUT if stdout is not None else None)
             except subprocess.CalledProcessError as err:
@@ -147,21 +149,21 @@ class MediaEncoder(object):
         cmd = [self._FFMPEG, '-i', self.src, '-g', 240,
                '-movflags', '+faststart', '-map', '0:v', '-c:v', 'libvpx-vp9', '-an', '-crf', int(crf),
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
-               '-passlogfile', self.tempfile('ffmpeg2pass', 'log'), '-y', self.tempfile('vp9-audio=no')]
+               '-passlogfile', self.make_tempfile('ffmpeg2pass', 'log'), '-y', self.make_tempfile('vp9-audio=no')]
         self.__run_command(cmd, stdout)
 
     def prepare_audio_tracks(self, stdout=None):
         channels = self.info.get_audio_channels()
         for track_id, channel_count in channels.items():
             if channel_count == 2: # extract stereo as-is
-                cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'copy', '-vn', '-y', self.tempfile('audio-%d' % track_id)]
+                cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'copy', '-vn', '-y', self.make_tempfile('audio-%d' % track_id)]
             else:
                 # extract other audio tracks with downmixing to stereo for normalizing, so that we have all tracks
                 # that are normalized (normalizing a properly designed 5.1 audio means destroying its quality, but
                 # having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware)
                 cmd = [self._FFMPEG, '-i', self.src, '-map', '0:%d:0' % track_id, '-c:a', 'aac', '-b:a', self.media.AUDIO_INTERMEDIATE_BITRATE,
                        '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
-                       '-vn', '-y', self.tempfile('audio-%d-2ch' % track_id)]
+                       '-vn', '-y', self.make_tempfile('audio-%d-2ch' % track_id)]
 
             self.__run_command(cmd, stdout)
 
@@ -170,41 +172,43 @@ class MediaEncoder(object):
         channels = self.info.get_audio_channels()
         for track_id, channel_count in channels.items():
             if channel_count == 2:
-                cmd = [self._FFMPEG_NORM, self.tempfile('audio-%d' % track_id),
+                cmd = [self._FFMPEG_NORM, self.make_tempfile('audio-%d' % track_id),
                     '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e=-aq %s' % self.media.AUDIO_QUALITY,
                     '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
-                    '-o', self.tempfile('audio-%d' % track_id), '-vn']
+                    '-o', self.make_tempfile('audio-%d' % track_id), '-vn']
             else:
                 # re-encode original as libvorbis, normalize downmixed
                 cmd = [self._FFMPEG, '-i', self.src,
                     '-map', '0:%d:0' % track_id, '-vn',
                     '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-aq', self.media.AUDIO_QUALITY,
-                    '-y', self.tempfile('audio-%d' % track_id)]
+                    '-y', self.make_tempfile('audio-%d' % track_id)]
                 self.__run_command(cmd, stdout)
 
-                cmd = [self._FFMPEG_NORM, self.tempfile('audio-%d-2ch' % track_id),
+                cmd = [self._FFMPEG_NORM, self.make_tempfile('audio-%d-2ch' % track_id),
                     '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e=-aq %s' % self.media.AUDIO_QUALITY,
                     '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
-                    '-o', self.tempfile('audio-%d-2ch' % track_id), '-vn']
+                    '-o', self.make_tempfile('audio-%d-2ch' % track_id), '-vn']
             self.__run_command(cmd, stdout)
 
     def run_remux_cmd(self, dest, stdout=None):
         ''' this produces result file '''
         channels = self.info.get_audio_channels()
-        cmd = [self._FFMPEG, '-i', self.tempfile('vp9-audio=no')]
+        cmd = [self._FFMPEG, '-i', self.make_tempfile('vp9-audio=no')]
     
         total_audio = 0
         for track_id, channel_count in channels.items():
-            cmd.extend(['-i', self.tempfile('audio-%d' % track_id)])
+            cmd.extend(['-i', self.make_tempfile('audio-%d' % track_id)])
             total_audio += 1
             if channel_count != 2:
-                cmd.extend(['-i', self.tempfile('audio-%d-2ch' % track_id)])
+                cmd.extend(['-i', self.make_tempfile('audio-%d-2ch' % track_id)])
                 total_audio += 1
         cmd.extend(['-movflags', '+faststart', '-map', '0:v', '-c:v', 'copy'])
         for number in range(1, total_audio + 1):
             cmd.extend(['-map', '%d:a' % number])
     
-        cmd.extend(['-c:a', 'copy', '-y', self.media.get_target_video_path(dest)])
+        target = self.media.get_target_video_path(dest)
+        ensuredir(os.path.dirname(target))
+        cmd.extend(['-c:a', 'copy', '-y', target])
         self.__run_command(cmd, stdout)
 
     def run_extract_subtitles(self, dest, stdout=None):
@@ -212,7 +216,9 @@ class MediaEncoder(object):
         if subtitles:
             cmd = [which('mkvextract'), 'tracks', self.src]
             for sub in subtitles:
-                cmd.append('%s:%s' % (sub.track_id, self.media.get_target_subtitles_path(dest, sub.language)))
+                subpath = self.media.get_target_subtitles_path(dest, sub.language)
+                ensuredir(os.path.dirname(subpath))
+                cmd.append('%s:%s' % (sub.track_id, subpath))
             self.__run_command(cmd, stdout)
 
     def cleanup_tempfiles(self):

@@ -7,7 +7,7 @@ try:
 except ImportError:
     import pickle
 
-from recode.helpers import NUM_THREADS, which, get_suffix
+from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir
 from recode.tasks import Executor
 from recode.media import PARSERS, MediaEntry, MediaEncoder
 
@@ -69,7 +69,7 @@ def main():
         entries.sort(key=lambda fe: fe.comparing_key)
 
         try:
-            with open(resume_file, 'wb') as inp:
+            with open_with_dir(resume_file, 'wb') as inp:
                 tasks = pickle.loads(inp.read())
         except IOError:
             tasks = []
@@ -77,7 +77,7 @@ def main():
         logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
         for entry in entries:
             tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), logpath))
-        with open(resume_file, 'wb') as out:
+        with open_with_dir(resume_file, 'wb') as out:
             out.write(pickle.dumps(tasks))
 
     if not args.nostart:

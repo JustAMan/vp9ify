@@ -2,6 +2,7 @@ import types
 import copy_reg
 import sys
 import os
+import errno
 
 def _unpickle_method(func_name, func_self, cls):
     for base in cls.mro():
@@ -80,3 +81,14 @@ def common_tail(sa, sb):
 def get_suffix(lst):
     suffix = reduce(common_tail, (fname for (fname, _) in lst), lst[0][0])
     return suffix
+
+def ensuredir(path):
+    try:
+        os.makedirs(path)
+    except OSError as err:
+        if err.errno != errno.EEXIST:
+            raise
+
+def open_with_dir(path, *arg, **kw):
+    ensuredir(os.path.dirname(path))
+    return open(path, *arg, **kw)

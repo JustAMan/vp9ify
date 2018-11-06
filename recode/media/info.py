@@ -61,12 +61,16 @@ class MediaInfo:
                 result[int(track['id'])] = int(track['properties']['audio_channels'])
         return result
 
-    def get_video_diagonal(self):
+    def get_video_dimensions(self):
         for track in self.tracks:
             if 'pixel_dimensions' in track.get('properties'):
                 try:
                     width, height = [int(x) for x in track['properties']['pixel_dimensions'].split('x')]
                 except ValueError:
                     continue
-                return math.hypot(width, height)
-        raise ValueError('Bad media "%s" - cannot get its diagonal' % self.path)
+                return width, height
+        raise ValueError('Bad media "%s" - cannot get video dimensions' % self.path)
+
+    def get_video_diagonal(self):
+        width, height = self.get_video_dimensions()
+        return math.hypot(width, height)
