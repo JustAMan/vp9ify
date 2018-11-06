@@ -94,6 +94,8 @@ class Executor:
                     th = threading.Thread(target=self.__run_task, args=(list_idx, task_idx, task))
                     th.start()
                     threads.append(th)
+                elif not self.running:
+                    break
             time.sleep(0.2)
         for th in threads:
             th.join()
