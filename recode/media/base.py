@@ -27,6 +27,9 @@ class MediaEntry(object):
 
     def get_target_subtitles_path(self, dest, lang):
         raise NotImplementedError()
+
+    def get_target_scriptized_path(self, dest):
+        raise NotImplementedError()
     
     @property
     def friendly_name(self):

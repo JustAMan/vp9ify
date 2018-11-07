@@ -38,6 +38,9 @@ class SeriesEpisode(MediaEntry):
     def get_target_subtitles_path(self, dest, lang):
         return self.__get_target_path(dest, '%s.srt' % lang)
 
+    def get_target_scriptized_path(self, dest):
+        return self.__get_target_path(dest, 'sh')
+
     @classmethod
     def parse(cls, fname, fpath):
         try:

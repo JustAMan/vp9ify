@@ -22,6 +22,8 @@ class IParallelTask:
         raise NotImplementedError()
     def can_run(self, all_tasks):
         raise NotImplementedError()
+    def scriptize(self):
+        raise NotImplementedError()
 
 class Executor:
     def __init__(self, resume_file):

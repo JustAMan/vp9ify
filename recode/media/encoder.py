@@ -5,6 +5,7 @@ import subprocess
 import errno
 import glob
 import logging
+import stat
 
 from ..helpers import which, open_with_dir, ensuredir, NUM_THREADS
 from ..tasks import IParallelTask, Resource, ResourceLimit
@@ -13,15 +14,16 @@ from .info import MediaInfo
 class EncoderTask(IParallelTask):
     BLOCKERS = ()
 
-    def __init__(self, encoder, stdout=None):
+    def __init__(self, encoder):
         self.encoder = encoder
         self.media = encoder.media
         self.info = encoder.info
-        self.stdout = stdout or None
+        self.stdout = encoder.stdout or None
         self.tmpdir = tempfile.tempdir()
+        self.dest = encoder.dest
     
     def _get_compare_attrs(self):
-        return [self.encoder, self.media, self.stdout, self.BLOCKERS]
+        return [self.encoder, self.media, self.stdout, self.BLOCKERS, self.dest]
 
     @classmethod
     def _get_name(cls):
@@ -58,7 +60,7 @@ class EncoderTask(IParallelTask):
                 stdout = open_with_dir(stdout, 'a')
             env = dict(os.environ)
             env['FFMPEG_PATH'] = self.encoder.FFMPEG
-            env['TMP'] = self.tmpdir # for ffmpeg-normalize if run in "--resume" mode without TMP set for vp9ify
+            env['TMP'] = env['TEMP'] = env['TMPDIR'] = self.tmpdir # for ffmpeg-normalize if run in "--resume" mode without TMP set for vp9ify
             try:
                 subprocess.check_call(cmd, stdout=stdout, stderr=subprocess.STDOUT if stdout is not None else None, env=env)
             except subprocess.CalledProcessError as err:
@@ -75,12 +77,33 @@ class EncoderTask(IParallelTask):
         if cmd:
             self._run_command(cmd)
 
+    def _gen_command(self):
+        return [str(x) for x in self._make_command()]
+
+    def scriptize(self):
+        cmd = self._gen_command()
+        if not cmd:
+            return
+        script = self.media.get_target_scriptized_path(self.dest)
+        header_needed = not os.path.exists(script)
+        with open_with_dir(script, 'a') as out:
+            if header_needed:
+                out.write('#!/bin/bash\n')
+                for tmpname in 'TMP TEMP TMPDIR'.split():
+                    out.write('export %s=%s\n' % (tmpname, subprocess.list2cmdline([self.tmpdir])))
+                out.write('export FFMPEG_PATH=%s\n\n' % subprocess.list2cmdline([self.encoder.FFMPEG]))
+            out.write('# %s\n%s' % (self.name, subprocess.list2cmdline(cmd)))
+            if self.stdout:
+                out.write(' > %s 2>&1' % subprocess.list2cmdline([self.stdout]))
+            out.write('\n')
+        stats = os.stat(script)
+        os.chmod(script, stats.st_mode | stat.S_IXUSR)
+
 class VideoEncodeTask(EncoderTask):
-    COMPARE = ('encoder', 'media', 'stdout', 'is_first_pass')
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-2)
 
-    def __init__(self, encoder, is_first_pass, stdout=None):
-        EncoderTask.__init__(self, encoder, stdout)
+    def __init__(self, encoder, is_first_pass):
+        EncoderTask.__init__(self, encoder)
         self.is_first_pass = is_first_pass
 
     def _get_compare_attrs(self):
@@ -103,11 +126,11 @@ class VideoEncodeTask(EncoderTask):
         return [self.encoder.FFMPEG, '-i', self.media.src, '-g', 240,
                '-movflags', '+faststart', '-map', '0:v', '-c:v', 'libvpx-vp9', '-an', '-crf', int(crf),
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
-               '-passlogfile', self.encoder.make_tempfile('ffmpeg2pass', 'log'), '-y', self.encoder.make_tempfile('vp9-audio=no')]
+               '-passlogfile', self.encoder.make_tempfile('ffmpeg2pass', 'log', '-*.log'), '-y', self.encoder.make_tempfile('vp9-audio=no')]
 
 class AudioBaseTask(EncoderTask):
-    def __init__(self, encoder, track_id, stdout=None):
-        EncoderTask.__init__(self, encoder, stdout)
+    def __init__(self, encoder, track_id):
+        EncoderTask.__init__(self, encoder)
         self.track_id = track_id
 
     def _get_compare_attrs(self):
@@ -119,8 +142,8 @@ class AudioBaseTask(EncoderTask):
 
 class ExtractStereoAudioTask(AudioBaseTask):
     limit = ResourceLimit(resource=Resource.IO, limit=3)
-    def __init__(self, encoder, track_id, stdout=None):
-        AudioBaseTask.__init__(self, encoder, track_id, stdout)
+    def __init__(self, encoder, track_id):
+        AudioBaseTask.__init__(self, encoder, track_id)
         # this only extracts stereo
         assert self.info.get_audio_channels()[track_id] == 2
 
@@ -135,7 +158,7 @@ class DownmixToStereoTask(AudioBaseTask):
     having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware) '''
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id, stdout=None):
-        AudioBaseTask.__init__(self, encoder, track_id, stdout)
+        AudioBaseTask.__init__(self, encoder, track_id)
         # this only works with non-stereo
         assert self.info.get_audio_channels()[track_id] > 2
 
@@ -147,8 +170,8 @@ class DownmixToStereoTask(AudioBaseTask):
 
 class NormalizeStereoTask(AudioBaseTask):
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
-    def __init__(self, encoder, track_id, parent_task, stdout=None):
-        AudioBaseTask.__init__(self, encoder, track_id, stdout)
+    def __init__(self, encoder, track_id, parent_task):
+        AudioBaseTask.__init__(self, encoder, track_id)
         # normalization should be only applied to stereo
         assert self.info.get_audio_channels()[track_id] == 2
         self.BLOCKERS = (parent_task.name,)
@@ -161,8 +184,8 @@ class NormalizeStereoTask(AudioBaseTask):
 
 class AudioEncodeTask(AudioBaseTask):
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
-    def __init__(self, encoder, track_id, stdout=None):
-        AudioBaseTask.__init__(self, encoder, track_id, stdout)
+    def __init__(self, encoder, track_id):
+        AudioBaseTask.__init__(self, encoder, track_id)
         # encoding without normalization is applied to non-stereo only
         assert self.info.get_audio_channels()[track_id] != 2
 
@@ -172,18 +195,10 @@ class AudioEncodeTask(AudioBaseTask):
                 '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-aq', self.media.AUDIO_QUALITY,
                 '-y', self.encoder.make_tempfile('audio-%d' % self.track_id)]
 
-class BaseDestTask(EncoderTask):
-    def __init__(self, encoder, dest, stdout=None):
-        EncoderTask.__init__(self, encoder, stdout)
-        self.dest = dest
-
-    def _get_compare_attrs(self):
-        return EncoderTask._get_compare_attrs(self) + [self.dest]
-
-class RemuxTask(BaseDestTask):
+class RemuxTask(EncoderTask):
     limit = ResourceLimit(resource=Resource.IO, limit=1)
-    def __init__(self, encoder, codec_tasks, dest, stdout=None):
-        BaseDestTask.__init__(self, encoder, dest, stdout)
+    def __init__(self, encoder, codec_tasks):
+        EncoderTask.__init__(self, encoder)
         self.BLOCKERS = tuple(task.name for task in codec_tasks)
 
     def _make_command(self):
@@ -206,7 +221,7 @@ class RemuxTask(BaseDestTask):
         cmd.extend(['-c:a', 'copy', '-y', target])
         return cmd
 
-class ExtractSubtitlesTask(BaseDestTask):
+class ExtractSubtitlesTask(EncoderTask):
     limit = ResourceLimit(resource=Resource.IO, limit=3)
     def _make_command(self):
         subtitles = self.info.get_subtitles()
@@ -221,12 +236,25 @@ class ExtractSubtitlesTask(BaseDestTask):
 
 class CleanupTempfiles(EncoderTask):
     limit = ResourceLimit(resource=Resource.IO, limit=10)
-    def __init__(self, encoder, remux_task, stdout=None):
-        EncoderTask.__init__(self, encoder, stdout)
+    def __init__(self, encoder, remux_task):
+        EncoderTask.__init__(self, encoder)
         self.BLOCKERS = (remux_task.name,)
 
     def __call__(self):
-        self.encoder.cleanup_tempfiles()
+        files = list(self.encoder.tempfiles)
+        for pattern in self.encoder.pattens:
+            files.extend(glob.glob(pattern))
+        for fname in files:
+            try:
+                os.unlink(fname)
+            except OSError as err:
+                if err.errno != errno.ENOENT:
+                    raise
+
+    def _gen_command(self):
+        if not any(self.encoder.tempfiles, self.encoder.pattens):
+            return []
+        return ['rm', '-f'] + self.encoder.tempfiles + self.encoder.pattens
 
 class MediaEncoder(object):
     '''
@@ -271,35 +299,42 @@ class MediaEncoder(object):
             Exception.__init__(self)
             self.err = err
 
-    def __init__(self, media):
+    def __init__(self, media, dest, stdout=None):
         self.media = media
         self.src = media.src
         self.info = MediaInfo.parse(self.src)
         self.tempfiles = []
+        self.patterns = []
+        self.dest = dest
+        self.stdout = stdout or None
 
     def __eq__(self, other):
         if not isinstance(other, MediaEncoder):
             return False
         return self.media == other.media
 
-    def make_tempfile(self, suffix='', ext='mkv'):
+    def make_tempfile(self, suffix='', ext='mkv', glob_suffix=None):
         tmpdir = tempfile.gettempdir()
         ensuredir(tmpdir)
         path = os.path.join(tmpdir, '%s.%s.%s' % (self.media.friendly_name, suffix, ext))
         if path not in self.tempfiles:
             self.tempfiles.append(path)
+        if glob_suffix:
+            pattern = path + glob_suffix
+            if pattern not in self.patterns:
+                self.patterns.append(pattern)
         return path
 
-    def make_tasks(self, dest, stdout=None):
-        video_tasks = [VideoEncodeTask(self, True, stdout), VideoEncodeTask(self, False, stdout)]
+    def make_tasks(self):
+        video_tasks = [VideoEncodeTask(self, True), VideoEncodeTask(self, False)]
         audio_tasks = []
         for track_id, channel_count in self.info.get_audio_channels().items():
             if channel_count == 2:
-                prepare_2ch_task = ExtractStereoAudioTask(self, track_id, stdout)
+                prepare_2ch_task = ExtractStereoAudioTask(self, track_id)
             else:
-                prepare_2ch_task = DownmixToStereoTask(self, track_id, stdout)
-                audio_tasks.append(AudioEncodeTask(self, track_id, stdout))
-            audio_tasks.extend([prepare_2ch_task, NormalizeStereoTask(self, track_id, prepare_2ch_task, stdout)])
-        remux_task = RemuxTask(self, video_tasks + audio_tasks, dest, stdout)
+                prepare_2ch_task = DownmixToStereoTask(self, track_id)
+                audio_tasks.append(AudioEncodeTask(self, track_id))
+            audio_tasks.extend([prepare_2ch_task, NormalizeStereoTask(self, track_id, prepare_2ch_task)])
+        remux_task = RemuxTask(self, video_tasks + audio_tasks)
         return video_tasks + audio_tasks + [remux_task,
-                ExtractSubtitlesTask(self, dest, stdout), CleanupTempfiles(self, remux_task, stdout)]
+                ExtractSubtitlesTask(self), CleanupTempfiles(self, remux_task)]

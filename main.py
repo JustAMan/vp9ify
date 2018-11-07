@@ -49,6 +49,7 @@ def main():
     parser.add_argument('--log', metavar='LOG_FILENAME', type=str, default='', help='Path to append logs to')
     parser.add_argument('--nostart', action='store_true', help='Do not start encoding, just create state file for resuming later')
     parser.add_argument('--debug', action='store_true', help='Produce some additional debug output')
+    parser.add_argument('--scriptize', action='store_true', help='Only generate shell scripts for encoding, do no real encoding work')
     args = parser.parse_args()
 
     if not args.state:
@@ -90,11 +91,15 @@ def main():
             logging.info('Resume file "%s" exists, appending' % resume_file)
         
         for entry in entries:
-            tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), logpath or None))
+            tasks.append(MediaEncoder(entry, args.dest, logpath or None).make_tasks())
         with open_with_dir(resume_file, 'wb') as out:
             out.write(pickle.dumps(tasks))
 
-    if not args.nostart:
+    if args.scriptize:
+        for tasklist in tasks:
+            for task in tasklist:
+                task.scriptize()
+    elif not args.nostart:
         logging.info('Recoding started')
         Executor(resume_file).execute()
         logging.info('Recoding stopped')
