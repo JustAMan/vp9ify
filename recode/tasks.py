@@ -14,7 +14,7 @@ class Resource:
     IO = 'i/o'
 ResourceLimit = collections.namedtuple('ResourceLimit', 'resource limit')
 
-class IParallelTask:
+class IParallelTask(object):
     limit = None
     def __call__(self):
         raise NotImplementedError()
@@ -24,6 +24,10 @@ class IParallelTask:
         raise NotImplementedError()
     def scriptize(self):
         raise NotImplementedError()
+    def __eq__(self, other):
+        raise NotImplementedError()
+    def __ne__(self, other):
+        return not (self == other)
 
 class Executor:
     def __init__(self, resume_file, scriptize=False):

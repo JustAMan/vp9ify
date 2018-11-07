@@ -45,8 +45,11 @@ class MediaEntry(object):
 
     def __eq__(self, other):
         if not isinstance(other, MediaEntry):
-            return NotImplemented
+            return False
         return self.comparing_key == other.comparing_key
+
+    def __ne__(self, other):
+        return not (self == other)
 
     @classmethod
     def parse(cls, fname, fpath):

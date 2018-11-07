@@ -328,6 +328,9 @@ class MediaEncoder(object):
             return False
         return self.media == other.media
 
+    def __ne__(self, other):
+        return not (self == other)
+
     def make_tempfile(self, suffix='', ext='mkv', glob_suffix=None):
         tmpdir = tempfile.gettempdir()
         ensuredir(tmpdir)
