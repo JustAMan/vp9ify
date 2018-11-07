@@ -8,6 +8,7 @@ import glob
 from ..helpers import which, open_with_dir, ensuredir
 from ..tasks import IParallelTask
 from .info import MediaInfo
+from ..options import OPTIONS
 
 class CommandTask(IParallelTask):
     BLOCKERS = {
@@ -105,7 +106,7 @@ class MediaEncoder(object):
             path, ext = os.path.splitext(stdout)
             stdout = path + '-%s-%s' % (caller, self.media.short_name) + ext
 
-        if os.environ.get('RECODE_PRODUCE_DEBUG', 'no').lower() == 'yes':
+        if OPTIONS.debug:
             print "[DBG] running command: %s (logs to: %s)" % (subprocess.list2cmdline(cmd), stdout)
         if sys.platform != 'win32':
             if stdout is not None:

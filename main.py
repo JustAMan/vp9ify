@@ -10,6 +10,7 @@ except ImportError:
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir
 from recode.tasks import Executor
 from recode.media import PARSERS, MediaEntry, MediaEncoder
+from recode.options import OPTIONS
 
 def parse_fentry(fentry, suffix):
     fname, fpath = fentry
@@ -53,9 +54,9 @@ def main():
         resume_file = os.path.abspath(os.path.join(args.source, 'tasks.pickle'))
     else:
         resume_file = os.path.abspath(args.state)
-    if args.resume and args.log:
-        sys.exit('Cannot change log file when resuming')
-    os.environ['RECODE_PRODUCE_DEBUG'] = 'yes' if args.debug else 'no'
+    OPTIONS.debug = args.debug
+    if args.log or args.source:
+        OPTIONS.logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
 
     if not args.resume:
         if not args.source or not args.dest:
@@ -74,9 +75,9 @@ def main():
         except IOError:
             tasks = []
 
-        logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
+        
         for entry in entries:
-            tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), logpath))
+            tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), OPTIONS.logpath or None))
         with open_with_dir(resume_file, 'wb') as out:
             out.write(pickle.dumps(tasks))
 
