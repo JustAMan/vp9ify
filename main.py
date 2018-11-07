@@ -14,7 +14,6 @@ logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
 from recode.media import PARSERS, MediaEntry, MediaEncoder
-from recode.options import OPTIONS
 
 def parse_fentry(fentry, suffix):
     fname, fpath = fentry
@@ -59,13 +58,14 @@ def main():
     else:
         resume_file = os.path.abspath(args.state)
 
-    OPTIONS.debug = args.debug
     if args.log or args.source:
-        OPTIONS.logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
-        ensuredir(os.path.dirname(OPTIONS.logpath))
-        handler = logging.FileHandler(OPTIONS.logpath, delay=True)
+        logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
+        ensuredir(os.path.dirname(logpath))
+        handler = logging.FileHandler(logpath, delay=True)
         handler.setFormatter(logging.Formatter(LOGGING_FORMAT))
         logging.getLogger().addHandler(handler)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     if not args.resume:
         if not args.source or not args.dest:
@@ -90,7 +90,7 @@ def main():
             logging.info('Resume file "%s" exists, appending' % resume_file)
         
         for entry in entries:
-            tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), OPTIONS.logpath or None))
+            tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), logpath or None))
         with open_with_dir(resume_file, 'wb') as out:
             out.write(pickle.dumps(tasks))
 

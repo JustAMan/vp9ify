@@ -4,11 +4,11 @@ import sys
 import subprocess
 import errno
 import glob
+import logging
 
 from ..helpers import which, open_with_dir, ensuredir, NUM_THREADS
 from ..tasks import IParallelTask, Resource, ResourceLimit
 from .info import MediaInfo
-from ..options import OPTIONS
 
 class EncoderTask(IParallelTask):
     BLOCKERS = ()
@@ -52,8 +52,7 @@ class EncoderTask(IParallelTask):
             path, ext = os.path.splitext(self.stdout)
             stdout = '%s-%s-%s%s' % (path, self.name.lower(), self.media.short_name, ext)
 
-        if OPTIONS.debug:
-            print "[DBG] running command: %s (logs to: %s)" % (subprocess.list2cmdline(cmd), stdout)
+        logging.debug("running command: %s (logs to: %s)" % (subprocess.list2cmdline(cmd), stdout))
         if sys.platform != 'win32':
             if self.stdout is not None:
                 stdout = open_with_dir(stdout, 'a')
