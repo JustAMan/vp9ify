@@ -19,7 +19,7 @@ class EncoderTask(IParallelTask):
         self.media = encoder.media
         self.info = encoder.info
         self.stdout = encoder.stdout or None
-        self.tmpdir = tempfile.tempdir()
+        self.tmpdir = tempfile.gettempdir()
         self.dest = encoder.dest
     
     def _get_compare_attrs(self):
@@ -172,8 +172,6 @@ class NormalizeStereoTask(AudioBaseTask):
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id, parent_task):
         AudioBaseTask.__init__(self, encoder, track_id)
-        # normalization should be only applied to stereo
-        assert self.info.get_audio_channels()[track_id] == 2
         self.BLOCKERS = (parent_task.name,)
 
     def _make_command(self):
@@ -242,7 +240,7 @@ class CleanupTempfiles(EncoderTask):
 
     def __call__(self):
         files = list(self.encoder.tempfiles)
-        for pattern in self.encoder.pattens:
+        for pattern in self.encoder.patterns:
             files.extend(glob.glob(pattern))
         for fname in files:
             try:
@@ -252,9 +250,9 @@ class CleanupTempfiles(EncoderTask):
                     raise
 
     def _gen_command(self):
-        if not any(self.encoder.tempfiles, self.encoder.pattens):
+        if not any((self.encoder.tempfiles, self.encoder.patterns)):
             return []
-        return ['rm', '-f'] + self.encoder.tempfiles + self.encoder.pattens
+        return ['rm', '-f'] + self.encoder.tempfiles + self.encoder.patterns
 
 class MediaEncoder(object):
     '''

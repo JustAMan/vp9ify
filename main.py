@@ -54,6 +54,7 @@ def main():
 
     if not args.state:
         if not args.source:
+            parser.print_help()
             sys.exit("Please specify either SRC_PATH or --state")
         resume_file = os.path.abspath(os.path.join(args.source, 'tasks.pickle'))
     else:
@@ -70,6 +71,7 @@ def main():
 
     if not args.resume:
         if not args.source or not args.dest:
+            parser.print_help()
             sys.exit('You must specify both SRC_PATH and DEST_PATH when running without --resume')
         inp = get_files(os.path.abspath(args.source))
         logging.info('Scanned "%s", found %d items' % (args.source, len(inp)))
