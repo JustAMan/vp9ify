@@ -98,9 +98,9 @@ def main():
             out.write(pickle.dumps(tasks))
 
     if args.scriptize:
-        for tasklist in tasks:
-            for task in tasklist:
-                task.scriptize()
+        logging.info('Scriptizing started')
+        Executor(resume_file, scriptize=True).execute()
+        logging.info('Scriptizing stopped')
     elif not args.nostart:
         logging.info('Recoding started')
         Executor(resume_file).execute()

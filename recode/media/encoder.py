@@ -21,9 +21,10 @@ class EncoderTask(IParallelTask):
         self.stdout = encoder.stdout or None
         self.tmpdir = tempfile.gettempdir()
         self.dest = encoder.dest
+        self.blockers = list(self.BLOCKERS)
     
     def _get_compare_attrs(self):
-        return [self.encoder, self.media, self.stdout, self.BLOCKERS, self.dest]
+        return [self.encoder, self.media, self.stdout, self.blockers, self.dest]
 
     @classmethod
     def _get_name(cls):
@@ -45,7 +46,7 @@ class EncoderTask(IParallelTask):
         return '%s (%s)' % (self.name, self.media.friendly_name)
 
     def can_run(self, all_tasks):
-        blockers = [t for t in all_tasks if isinstance(t, EncoderTask) and t.name in self.BLOCKERS]
+        blockers = [t for t in all_tasks if isinstance(t, EncoderTask) and t.name in self.blockers]
         return not blockers
 
     def _run_command(self, cmd):
@@ -94,10 +95,26 @@ class EncoderTask(IParallelTask):
                 out.write('export FFMPEG_PATH=%s\n\n' % subprocess.list2cmdline([self.encoder.FFMPEG]))
             out.write('# %s\n%s' % (self.name, subprocess.list2cmdline(cmd)))
             if self.stdout:
-                out.write(' > %s 2>&1' % subprocess.list2cmdline([self.stdout]))
+                out.write(' >> %s 2>&1' % subprocess.list2cmdline([self.stdout]))
             out.write('\n')
         stats = os.stat(script)
         os.chmod(script, stats.st_mode | stat.S_IXUSR)
+
+class RemoveScriptTask(EncoderTask):
+    limit = ResourceLimit(resource=Resource.IO, limit=30)
+    BLOCKERS = ()
+    def __call__(self):
+        script = self.media.get_target_scriptized_path(self.dest)
+        try:
+            os.unlink(script)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+
+    def scriptize(self):
+        self()
+
+EncoderTask.BLOCKERS += (RemoveScriptTask._get_name(),)
 
 class VideoEncodeTask(EncoderTask):
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-2)
@@ -115,7 +132,7 @@ class VideoEncodeTask(EncoderTask):
 
     def can_run(self, all_tasks):
         all_transcodes = [t for t in all_tasks if isinstance(t, VideoEncodeTask)]
-        return all_transcodes[0] == self
+        return all_transcodes[0] == self and EncoderTask.can_run(self, all_tasks)
 
     def _make_command(self):
         crf = (self.encoder.CRF_PROP * self.info.get_video_diagonal() ** self.encoder.CRF_POW) * self.media.TARGET_1080_QUALITY / self.encoder.CRF_VP9_1080P
@@ -172,7 +189,7 @@ class NormalizeStereoTask(AudioBaseTask):
     limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id, parent_task):
         AudioBaseTask.__init__(self, encoder, track_id)
-        self.BLOCKERS = (parent_task.name,)
+        self.blockers.append(parent_task.name)
 
     def _make_command(self):
         return [self.encoder.FFMPEG_NORM, self.encoder.make_tempfile('audio-%d-2ch' % self.track_id),
@@ -197,7 +214,7 @@ class RemuxTask(EncoderTask):
     limit = ResourceLimit(resource=Resource.IO, limit=1)
     def __init__(self, encoder, codec_tasks):
         EncoderTask.__init__(self, encoder)
-        self.BLOCKERS = tuple(task.name for task in codec_tasks)
+        self.blockers.extend(task.name for task in codec_tasks)
 
     def _make_command(self):
         channels = self.info.get_audio_channels()
@@ -236,7 +253,7 @@ class CleanupTempfiles(EncoderTask):
     limit = ResourceLimit(resource=Resource.IO, limit=10)
     def __init__(self, encoder, remux_task):
         EncoderTask.__init__(self, encoder)
-        self.BLOCKERS = (remux_task.name,)
+        self.blockers.append(remux_task.name)
 
     def __call__(self):
         files = list(self.encoder.tempfiles)
@@ -334,5 +351,5 @@ class MediaEncoder(object):
                 audio_tasks.append(AudioEncodeTask(self, track_id))
             audio_tasks.extend([prepare_2ch_task, NormalizeStereoTask(self, track_id, prepare_2ch_task)])
         remux_task = RemuxTask(self, video_tasks + audio_tasks)
-        return video_tasks + audio_tasks + [remux_task,
+        return [RemoveScriptTask(self)] + video_tasks + audio_tasks + [remux_task,
                 ExtractSubtitlesTask(self), CleanupTempfiles(self, remux_task)]

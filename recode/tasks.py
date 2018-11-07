@@ -26,7 +26,7 @@ class IParallelTask:
         raise NotImplementedError()
 
 class Executor:
-    def __init__(self, resume_file):
+    def __init__(self, resume_file, scriptize=False):
         self.resume_file = resume_file
         with open(self.resume_file, 'rb') as inp:
             self.tasklists = pickle.loads(inp.read())
@@ -36,6 +36,7 @@ class Executor:
         self.lock = threading.RLock()
         self.running = []
         self.resources = collections.defaultdict(int)
+        self.scriptize = scriptize
 
     def __pop_next_task(self):
         with self.lock:
@@ -61,16 +62,19 @@ class Executor:
 
     def __run_task(self, list_idx, task_idx, task):
         try:
-            task()
+            try:
+                task.scriptize() if self.scriptize else task()
+            except:
+                logging.exception('Error in %s' % task)
+            else:
+                logging.info('Completed %s' % task)
+                self.__mark_finished(list_idx, task_idx, task)
+            finally:
+                with self.lock:
+                    self.resources[task.limit.resource] -= 1
+                    self.running.remove(task)
         except:
-            logging.error('Error in %s' % task)
-        else:
-            logging.info('Completed %s' % task)
-            self.__mark_finished(list_idx, task_idx, task)
-        finally:
-            with self.lock:
-                self.resources[task.limit.resource] -= 1
-                self.running.remove(task)
+            logging.exception('Unhandled error while running task %s' % task)
     
     def execute(self):
         threads = []
