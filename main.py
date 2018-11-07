@@ -6,8 +6,12 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+import logging
 
-from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir
+LOGGING_FORMAT = '%(asctime)s|%(levelname)s|%(message)s'
+logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
+
+from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
 from recode.media import PARSERS, MediaEntry, MediaEncoder
 from recode.options import OPTIONS
@@ -54,15 +58,22 @@ def main():
         resume_file = os.path.abspath(os.path.join(args.source, 'tasks.pickle'))
     else:
         resume_file = os.path.abspath(args.state)
+
     OPTIONS.debug = args.debug
     if args.log or args.source:
         OPTIONS.logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
+        ensuredir(os.path.dirname(OPTIONS.logpath))
+        handler = logging.FileHandler(OPTIONS.logpath, delay=True)
+        handler.setFormatter(logging.Formatter(LOGGING_FORMAT))
+        logging.getLogger().addHandler(handler)
 
     if not args.resume:
         if not args.source or not args.dest:
             sys.exit('You must specify both SRC_PATH and DEST_PATH when running without --resume')
         inp = get_files(os.path.abspath(args.source))
+        logging.info('Scanned "%s", found %d items' % (args.source, len(inp)))
         suffix = get_suffix(inp)
+        logging.info('Detected suffix as "%s"' % suffix)
 
         entries = []
         for fentry in inp:
@@ -74,7 +85,9 @@ def main():
                 tasks = pickle.loads(inp.read())
         except IOError:
             tasks = []
-
+            logging.info('Resume file "%s" does not exist, starting from scratch' % resume_file)
+        else:
+            logging.info('Resume file "%s" exists, appending' % resume_file)
         
         for entry in entries:
             tasks.append(MediaEncoder(entry).make_tasks(os.path.abspath(args.dest), OPTIONS.logpath or None))
@@ -82,7 +95,9 @@ def main():
             out.write(pickle.dumps(tasks))
 
     if not args.nostart:
+        logging.info('Recoding started')
         Executor(resume_file).execute()
+        logging.info('Recoding stopped')
 
 if __name__ == '__main__':
     main()

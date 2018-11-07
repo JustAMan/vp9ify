@@ -7,6 +7,7 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+import logging
 
 class Resource:
     CPU = 'cpu'
@@ -28,6 +29,7 @@ class Executor:
         with open(self.resume_file, 'rb') as inp:
             self.tasklists = pickle.loads(inp.read())
 
+        logging.info('Amount of batches: %d' % len(self.tasklists))
         self.unfinished = copy.deepcopy(self.tasklists)
         self.lock = threading.RLock()
         self.running = []
@@ -44,6 +46,7 @@ class Executor:
                             self.resources[task.limit.resource] += 1
                             self.tasklists[list_idx][task_idx] = None
                             self.running.append(task)
+                            logging.info('Starting %s' % task)
                             return list_idx, task_idx, task
         return None, None, None
 
@@ -55,15 +58,12 @@ class Executor:
                 out.write(pickle.dumps(self.unfinished))
 
     def __run_task(self, list_idx, task_idx, task):
-        descr = str(task)
-        print 'Running %s' % descr
         try:
             task()
         except:
-            print 'Error in %s' % descr
-            raise
+            logging.error('Error in %s' % task)
         else:
-            print 'Stopped %s' % descr
+            logging.info('Completed %s' % task)
             self.__mark_finished(list_idx, task_idx, task)
         finally:
             with self.lock:
@@ -86,6 +86,7 @@ class Executor:
                     th.start()
                     threads.append(th)
                 elif not self.running:
+                    logging.warning('Exiting due to empty running queue while some tasks still remain, this is probably a bug')
                     break
             time.sleep(0.2)
         for th in threads:
