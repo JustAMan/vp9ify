@@ -104,15 +104,15 @@ class RemoveScriptTask(EncoderTask):
     limit = ResourceLimit(resource=Resource.IO, limit=30)
     BLOCKERS = ()
     def __call__(self):
+        pass
+
+    def scriptize(self):
         script = self.media.get_target_scriptized_path(self.dest)
         try:
             os.unlink(script)
         except OSError as err:
             if err.errno != errno.ENOENT:
                 raise
-
-    def scriptize(self):
-        self()
 
 EncoderTask.BLOCKERS += (RemoveScriptTask._get_name(),)
 

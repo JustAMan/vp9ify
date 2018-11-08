@@ -44,7 +44,7 @@ class SeriesEpisode(MediaEntry):
     @classmethod
     def parse(cls, fname, fpath):
         try:
-            series, season, episode, name = re.match(r'(.*)\WS(\d+)E(\d+)\W(.*)$', fname).groups()
+            series, season, episode, name = re.match(r'(.*)\WS(\d+)E(\d+)(?:E\d+)?\W(.*)$', fname).groups()
             season, episode = int(season), int(episode)
         except (AttributeError, ValueError):
             raise cls.UnknownFile()
