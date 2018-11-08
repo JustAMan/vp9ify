@@ -96,8 +96,12 @@ class EncoderTask(IParallelTask):
                 out.write('#!/bin/bash\n')
                 for tmpname in 'TMP TEMP TMPDIR'.split():
                     out.write('export %s=%s\n' % (tmpname, subprocess.list2cmdline([self.tmpdir])))
+                    out.write('mkdir -p %s\n' % subprocess.list2cmdline([self.tmpdir]))
                 out.write('export FFMPEG_PATH=%s\n\n' % subprocess.list2cmdline([self.encoder.FFMPEG]))
-            out.write('# %s\n%s' % (self.name, subprocess.list2cmdline(cmd)))
+            out.write('# %s\n' % self.name)
+            if self.stdout:
+                out.write('mkdir -p %s\n' % subprocess.list2cmdline([os.path.dirname(self._get_stdout())]))
+            out.write(subprocess.list2cmdline(cmd))
             if self.stdout:
                 out.write(' >> %s 2>&1' % subprocess.list2cmdline([self._get_stdout()]))
             out.write('\n')
