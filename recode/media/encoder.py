@@ -49,11 +49,15 @@ class EncoderTask(IParallelTask):
         blockers = [t for t in all_tasks if isinstance(t, EncoderTask) and t.name in self.blockers]
         return not blockers
 
-    def _run_command(self, cmd):
-        cmd = [str(x) for x in cmd]
+    def _get_stdout(self):
         if self.stdout is not None:
             path, ext = os.path.splitext(self.stdout)
-            stdout = '%s-%s-%s%s' % (path, self.name.lower(), self.media.short_name, ext)
+            return '%s-%s-%s%s' % (path, self.name.lower(), self.media.short_name, ext)
+        return None
+
+    def _run_command(self, cmd):
+        cmd = [str(x) for x in cmd]
+        stdout = self._get_stdout()
 
         logging.debug("running command: %s (logs to: %s)" % (subprocess.list2cmdline(cmd), stdout))
         if sys.platform != 'win32':
@@ -95,7 +99,7 @@ class EncoderTask(IParallelTask):
                 out.write('export FFMPEG_PATH=%s\n\n' % subprocess.list2cmdline([self.encoder.FFMPEG]))
             out.write('# %s\n%s' % (self.name, subprocess.list2cmdline(cmd)))
             if self.stdout:
-                out.write(' >> %s 2>&1' % subprocess.list2cmdline([self.stdout]))
+                out.write(' >> %s 2>&1' % subprocess.list2cmdline([self._get_stdout()]))
             out.write('\n')
         stats = os.stat(script)
         os.chmod(script, stats.st_mode | stat.S_IXUSR)
