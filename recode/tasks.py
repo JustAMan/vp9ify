@@ -101,4 +101,5 @@ class Executor:
             time.sleep(0.2)
         for th in threads:
             th.join()
-        os.unlink(self.resume_file)
+        if not self.scriptize and not self.unfinished:
+            os.unlink(self.resume_file)

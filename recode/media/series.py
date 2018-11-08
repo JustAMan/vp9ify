@@ -48,4 +48,4 @@ class SeriesEpisode(MediaEntry):
             season, episode = int(season), int(episode)
         except (AttributeError, ValueError):
             raise cls.UnknownFile()
-        return cls(fpath, series, season, episode, name)
+        return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
