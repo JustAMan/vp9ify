@@ -61,8 +61,9 @@ class Executor:
         with self.lock:
             assert self.unfinished[list_idx][task_idx] == task
             self.unfinished[list_idx][task_idx] = None
-            with open(self.resume_file, 'wb') as out:
-                out.write(pickle.dumps(self.unfinished))
+            if not self.scriptize:
+                with open(self.resume_file, 'wb') as out:
+                    out.write(pickle.dumps(self.unfinished))
 
     def __run_task(self, list_idx, task_idx, task):
         try:
