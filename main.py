@@ -50,7 +50,12 @@ def main():
     parser.add_argument('--nostart', action='store_true', help='Do not start encoding, just create state file for resuming later')
     parser.add_argument('--debug', action='store_true', help='Produce some additional debug output')
     parser.add_argument('--scriptize', action='store_true', help='Only generate shell scripts for encoding, do no real encoding work')
+    parser.add_argument('--interactive', '-i', action='store_true', help='Be interactive: ask some questions before running')
     args = parser.parse_args()
+
+    if args.interactive and args.resume:
+        parser.print_help()
+        sys.exit('Cannot be interactive and resume at the same time')
 
     if not args.state:
         if not args.source:
@@ -82,6 +87,9 @@ def main():
         for fentry in inp:
             entries.append(parse_fentry(fentry, suffix))
         entries.sort(key=lambda fe: fe.comparing_key)
+        if args.interactive:
+            for entry in entries:
+                entry.interact()
 
         try:
             with open_with_dir(resume_file, 'wb') as inp:

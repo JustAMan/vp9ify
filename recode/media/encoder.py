@@ -347,6 +347,10 @@ class MediaEncoder(object):
         video_tasks = [VideoEncodeTask(self, True), VideoEncodeTask(self, False)]
         audio_tasks = []
         for track_id, channel_count in self.info.get_audio_channels().items():
+            if track_id in self.media.ignored_audio_tracks:
+                logging.info('Skipping audio track %d in "%s"' % (track_id, self.media.friendly_name))
+                continue
+
             if channel_count == 2:
                 prepare_2ch_task = ExtractStereoAudioTask(self, track_id)
             else:

@@ -92,3 +92,42 @@ def ensuredir(path):
 def open_with_dir(path, *arg, **kw):
     ensuredir(os.path.dirname(path))
     return open(path, *arg, **kw)
+
+def input_numbers(prompt, minval, maxval, accept_empty=True):
+    if accept_empty:
+        template = '%s (from %d to %d, comma separated, hyphen denotes range, empty means "all"): '
+    else:
+        template = '%s (from %d to %d, comma separated, hyphen denotes range): '
+    while True:
+        text = raw_input(template % (prompt, minval, maxval))
+        if not text.strip() and accept_empty:
+            return list(range(minval, maxval + 1))
+        result = []
+        try:
+            for piece in text.strip().split(','):
+                if '-' not in piece:
+                    result.append(int(piece.strip()))
+                else:
+                    left, right = [int(x.strip()) for x in piece.split('-')]
+                    result.extend(range(left, right + 1))
+            if min(result) < minval:
+                print 'Minimum should be at least %d' % minval
+                continue
+            elif max(result) > maxval:
+                print 'Maximum should be at least %d' % minval
+                continue
+        except ValueError:
+            print 'Cannot parse numbers, try again'
+            continue
+        return result
+
+def confirm_yesno(prompt, default=True):
+    prompt = '%s [%s]: ' % (prompt, 'Y/n' if default else 'y/N')
+    while True:
+        text = raw_input(prompt).strip().lower()
+        if not text:
+            return default
+        if text in ('y', 'yes'):
+            return True
+        if text in ('n', 'no'):
+            return False

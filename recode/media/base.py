@@ -1,4 +1,5 @@
 from .info import MediaInfo
+from ..helpers import input_numbers, confirm_yesno
 
 class MediaEntry(object):
     LUFS_LEVEL = -14
@@ -20,7 +21,7 @@ class MediaEntry(object):
     def __init__(self, src):
         self.src = src
         self.info = MediaInfo.parse(src)
-        self.tempfiles = []
+        self.ignored_audio_tracks = set()
 
     def get_target_video_path(self, dest):
         raise NotImplementedError()
@@ -54,3 +55,19 @@ class MediaEntry(object):
     @classmethod
     def parse(cls, fname, fpath):
         raise NotImplementedError()
+
+    def interact(self):
+        audio = sorted(self.info.get_audio_tracks(), key=lambda ainfo: ainfo.track_id)
+        if audio:
+            print 'Audio tracks available in "%s":' % self.friendly_name
+            for idx, ainfo in enumerate(audio):
+                print '  % 2d. [%s] %s (%d channels)' % (idx + 1, ainfo.language, ainfo.name, ainfo.channels)
+            while True:
+                to_keep = input_numbers('Input track numbers to keep', 1, len(audio))
+                print 'Tracks to keep'
+                for idx in to_keep:
+                    print '  [%s] %s (%d channels)' % (audio[idx - 1].language, audio[idx - 1].name, audio[idx - 1].channels)
+                if confirm_yesno('Are tracks selected correctly?'):
+                    break
+        keep_ids = set(audio[idx - 1].track_id for idx in to_keep)
+        self.ignored_audio_tracks = set(ainfo.track_id for ainfo in audio) - keep_ids
