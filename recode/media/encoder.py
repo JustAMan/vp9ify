@@ -230,6 +230,9 @@ class RemuxTask(EncoderTask):
     
         total_audio = 0
         for track_id, channel_count in channels.items():
+            if track_id in self.media.ignored_audio_tracks:
+                # this audio track is ignored
+                continue
             cmd.extend(['-i', self.encoder.make_tempfile('audio-%d-2ch' % track_id)])
             total_audio += 1
             if channel_count != 2:
