@@ -103,8 +103,9 @@ class Executor:
                     self.running.remove(task)
         except:
             logging.exception('Unhandled error while running task %s' % task)
+            raise
     
-    def execute(self):
+    def _execute(self):
         threads = []
         while True:
             with self.lock:
@@ -134,3 +135,10 @@ class Executor:
                     remaining.extend(t for t in tl if t)
                 if not remaining:
                     self.state.remove()
+
+    def execute(self):
+        try:
+            return self._execute()
+        except:
+            logging.exception('Unhandled error while executing tasks')
+            raise

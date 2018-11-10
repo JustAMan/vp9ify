@@ -70,6 +70,7 @@ class EncoderTask(IParallelTask):
             try:
                 subprocess.check_call(cmd, stdout=stdout, stderr=subprocess.STDOUT if stdout is not None else None, env=env)
             except subprocess.CalledProcessError as err:
+                logging.error('Cannot run transcode, return code: %s' % err.returncode)
                 raise MediaEncoder.TranscodingFailure(err)
             finally:
                 if self.stdout is not None:
