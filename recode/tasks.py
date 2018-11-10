@@ -16,6 +16,8 @@ class Resource:
     IO = 'i/o'
     CPU_MAIN = CPU + '-main'
     CPU_OTHER = CPU + '-other'
+    IO_MAIN = IO + '-main'
+    IO_OTHER = IO + '-other'
 
 ResourceLimit = collections.namedtuple('ResourceLimit', 'resource limit')
 
