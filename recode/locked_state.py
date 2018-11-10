@@ -1,9 +1,10 @@
-import flock
 import os
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+import flock
 
 class LockedState(object):
     def __init__(self, state_path):

@@ -3,6 +3,8 @@ import os
 import sys
 import logging
 
+from .helpers import open_with_dir
+
 if sys.platform == 'win32':
     logging.warning(('[%s] No locking on Windows, '
             'for developing only, be CAREFUL!\n') % os.path.basename(__file__))
@@ -22,7 +24,7 @@ else:
             self.handle = None
         def __enter__(self):
             while True:
-                handle = open(self.path, 'w')
+                handle = open_with_dir(self.path, 'w')
                 try:
                     logging.info('Trying to grab lock "%s"' % self.path)
                     fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
