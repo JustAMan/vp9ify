@@ -45,8 +45,8 @@ class EncoderTask(IParallelTask):
     def __str__(self):
         return '%s (%s)' % (self.name, self.media.friendly_name)
 
-    def can_run(self, all_tasks):
-        blockers = [t for t in all_tasks if isinstance(t, EncoderTask) and t.name in self.blockers]
+    def can_run(self, batch_tasks):
+        blockers = [t for t in batch_tasks if isinstance(t, EncoderTask) and t.name in self.blockers]
         return not blockers
 
     def _get_stdout(self):
@@ -108,8 +108,16 @@ class EncoderTask(IParallelTask):
         stats = os.stat(script)
         os.chmod(script, stats.st_mode | stat.S_IXUSR)
 
+    def _compute_limit(self, remaining_tasks, running_tasks):
+        raise NotImplementedError()
+    def get_limit(self, remaining_tasks, running_tasks):
+        try:
+            return self.static_limit
+        except AttributeError:
+            return self._compute_limit(remaining_tasks, running_tasks)
+
 class RemoveScriptTask(EncoderTask):
-    limit = ResourceLimit(resource=Resource.IO, limit=30)
+    static_limit = ResourceLimit(resource=Resource.IO, limit=30)
     BLOCKERS = ()
     def __call__(self):
         pass
@@ -125,7 +133,8 @@ class RemoveScriptTask(EncoderTask):
 EncoderTask.BLOCKERS += (RemoveScriptTask._get_name(),)
 
 class VideoEncodeTask(EncoderTask):
-    limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-2)
+    limit_2pass = ResourceLimit(resource=Resource.CPU_MAIN, limit=NUM_THREADS-2)
+    limit_1pass = ResourceLimit(resource=Resource.CPU_OTHER, limit=NUM_THREADS-1)
 
     def __init__(self, encoder, is_first_pass):
         EncoderTask.__init__(self, encoder)
@@ -134,13 +143,25 @@ class VideoEncodeTask(EncoderTask):
     def _get_compare_attrs(self):
         return EncoderTask._get_compare_attrs(self) + [self.is_first_pass]
 
+    def _compute_limit(self, remaining_tasks, running_tasks):
+        if not self.is_first_pass:
+            return self.limit_2pass
+
+        video_tasks = [t for t in remaining_tasks if isinstance(t, VideoEncodeTask)]
+        running_2pass = len(t for t in running_tasks if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
+        pass1 = len(t for t in video_tasks if t.is_first_pass)
+        pass2 = len(video_tasks) - pass1
+        need_lookahead = self.limit_2pass.limit - (pass2 - pass1)
+        remaining_limit = self.limit_1pass.limit - min(running_2pass + pass2, self.limit_2pass.limit)
+        return self.limit_1pass._replace(limit=max(remaining_limit, need_lookahead))
+
     @property
     def name(self):
         return '%s-pass=%d' % (self._get_name(), 1 if self.is_first_pass else 2)
 
-    def can_run(self, all_tasks):
-        all_transcodes = [t for t in all_tasks if isinstance(t, VideoEncodeTask)]
-        return all_transcodes[0] == self and EncoderTask.can_run(self, all_tasks)
+    def can_run(self, batch_tasks):
+        all_transcodes = [t for t in batch_tasks if isinstance(t, VideoEncodeTask)]
+        return all_transcodes[0] == self and EncoderTask.can_run(self, batch_tasks)
 
     def _make_command(self):
         crf = (self.encoder.CRF_PROP * self.info.get_video_diagonal() ** self.encoder.CRF_POW) * self.media.TARGET_1080_QUALITY / self.encoder.CRF_VP9_1080P
@@ -166,7 +187,7 @@ class AudioBaseTask(EncoderTask):
         return '%s-track=%d' % (self._get_name(), self.track_id)
 
 class ExtractStereoAudioTask(AudioBaseTask):
-    limit = ResourceLimit(resource=Resource.IO, limit=3)
+    static_limit = ResourceLimit(resource=Resource.IO, limit=3)
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only extracts stereo
@@ -177,11 +198,17 @@ class ExtractStereoAudioTask(AudioBaseTask):
                 '-map', '0:%d:0' % self.track_id, '-c:a', 'copy', '-vn',
                 '-y', self.encoder.make_tempfile('audio-%d-2ch' % self.track_id)]
 
-class DownmixToStereoTask(AudioBaseTask):
+class LimitCpuUsageMixin(object):
+    def _compute_limit(self, remaining_tasks, running_tasks):
+        total_2pass = len(t for t in (remaining_tasks + running_tasks) if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
+        needed_limit = min(total_2pass, VideoEncodeTask.limit_2pass.limit)
+        return self.cpu_limit._replace(limit=self.cpu_limit.limit - needed_limit)
+
+class DownmixToStereoTask(AudioBaseTask, LimitCpuUsageMixin):
     ''' Extract non-stereo audio tracks with downmixing to stereo for normalizing, so that we have all tracks
     that are normalized (normalizing a properly designed 5.1 audio means destroying its quality, but
     having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware) '''
-    limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
+    cpu_limit = ResourceLimit(resource=Resource.CPU_OTHER, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id, stdout=None):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only works with non-stereo
@@ -193,8 +220,8 @@ class DownmixToStereoTask(AudioBaseTask):
                 '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
                 '-vn', '-y', self.encoder.make_tempfile('audio-%d-2ch' % self.track_id)]
 
-class NormalizeStereoTask(AudioBaseTask):
-    limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
+class NormalizeStereoTask(AudioBaseTask, LimitCpuUsageMixin):
+    cpu_limit = ResourceLimit(resource=Resource.CPU_OTHER, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id, parent_task):
         AudioBaseTask.__init__(self, encoder, track_id)
         self.blockers.append(parent_task.name)
@@ -205,8 +232,8 @@ class NormalizeStereoTask(AudioBaseTask):
                 '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                 '-o', self.encoder.make_tempfile('audio-%d-2ch' % self.track_id), '-vn']
 
-class AudioEncodeTask(AudioBaseTask):
-    limit = ResourceLimit(resource=Resource.CPU, limit=NUM_THREADS-1)
+class AudioEncodeTask(AudioBaseTask, LimitCpuUsageMixin):
+    cpu_limit = ResourceLimit(resource=Resource.CPU_OTHER, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
         # encoding without normalization is applied to non-stereo only
@@ -219,7 +246,7 @@ class AudioEncodeTask(AudioBaseTask):
                 '-y', self.encoder.make_tempfile('audio-%d' % self.track_id)]
 
 class RemuxTask(EncoderTask):
-    limit = ResourceLimit(resource=Resource.IO, limit=1)
+    static_limit = ResourceLimit(resource=Resource.IO, limit=1)
     def __init__(self, encoder, codec_tasks):
         EncoderTask.__init__(self, encoder)
         self.blockers.extend(task.name for task in codec_tasks)
@@ -248,7 +275,7 @@ class RemuxTask(EncoderTask):
         return cmd
 
 class ExtractSubtitlesTask(EncoderTask):
-    limit = ResourceLimit(resource=Resource.IO, limit=3)
+    static_limit = ResourceLimit(resource=Resource.IO, limit=3)
     def _make_command(self):
         subtitles = self.info.get_subtitles()
         if subtitles:
@@ -261,7 +288,7 @@ class ExtractSubtitlesTask(EncoderTask):
         return None
 
 class CleanupTempfiles(EncoderTask):
-    limit = ResourceLimit(resource=Resource.IO, limit=10)
+    static_limit = ResourceLimit(resource=Resource.IO, limit=10)
     def __init__(self, encoder, remux_task):
         EncoderTask.__init__(self, encoder)
         self.blockers.append(remux_task.name)

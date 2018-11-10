@@ -12,15 +12,19 @@ import logging
 class Resource:
     CPU = 'cpu'
     IO = 'i/o'
+    CPU_MAIN = CPU + '-main'
+    CPU_OTHER = CPU + '-other'
+
 ResourceLimit = collections.namedtuple('ResourceLimit', 'resource limit')
 
 class IParallelTask(object):
-    limit = None
+    def get_limit(self, remaining_tasks, running_tasks):
+        raise NotImplementedError()
     def __call__(self):
         raise NotImplementedError()
     def __str__(self):
         raise NotImplementedError()
-    def can_run(self, all_tasks):
+    def can_run(self, batch_tasks):
         raise NotImplementedError()
     def scriptize(self):
         raise NotImplementedError()
@@ -44,18 +48,24 @@ class Executor:
 
     def __pop_next_task(self):
         with self.lock:
+            candidates = []
+            all_tasks = []
             for list_idx, tasklist in enumerate(self.tasklists):
                 not_done = self.unfinished[list_idx]
                 for task_idx, task in enumerate(tasklist):
                     if task and task.can_run(not_done):
-                        already_running = self.resources[task.limit.resource]
-                        if already_running < task.limit.limit:
-                            self.resources[task.limit.resource] += 1
-                            self.tasklists[list_idx][task_idx] = None
-                            self.running.append(task)
-                            logging.info('Starting %s' % task)
-                            return list_idx, task_idx, task
-        return None, None, None
+                        candidates.append((list_idx, task_idx, task))
+                        all_tasks.append(task)
+
+            for list_idx, task_idx, task in candidates:
+                limit = task.get_limit(all_tasks, self.running)
+                if self.resources[limit.resource] < limit.limit:
+                    self.resources[limit.resource] += 1
+                    self.tasklists[list_idx][task_idx] = None
+                    self.running.append(task)
+                    logging.info('Starting %s' % task)
+                    return list_idx, task_idx, task, limit
+        return None, None, None, None
 
     def __mark_finished(self, list_idx, task_idx, task):
         with self.lock:
@@ -65,7 +75,7 @@ class Executor:
                 with open(self.resume_file, 'wb') as out:
                     out.write(pickle.dumps(self.unfinished))
 
-    def __run_task(self, list_idx, task_idx, task):
+    def __run_task(self, list_idx, task_idx, task, limit):
         try:
             try:
                 task.scriptize() if self.scriptize else task()
@@ -76,7 +86,7 @@ class Executor:
                 self.__mark_finished(list_idx, task_idx, task)
             finally:
                 with self.lock:
-                    self.resources[task.limit.resource] -= 1
+                    self.resources[limit.resource] -= 1
                     self.running.remove(task)
         except:
             logging.exception('Unhandled error while running task %s' % task)
@@ -91,9 +101,9 @@ class Executor:
                 if not remaining:
                     break
 
-                list_idx, task_idx, task = self.__pop_next_task()
+                list_idx, task_idx, task, limit = self.__pop_next_task()
                 if task:
-                    th = threading.Thread(target=self.__run_task, args=(list_idx, task_idx, task))
+                    th = threading.Thread(target=self.__run_task, args=(list_idx, task_idx, task, limit))
                     th.start()
                     threads.append(th)
                 elif not self.running:
