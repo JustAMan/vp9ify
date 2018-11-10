@@ -150,8 +150,8 @@ class VideoEncodeTask(EncoderTask):
             return self.limit_2pass
 
         video_tasks = [t for t in remaining_tasks if isinstance(t, VideoEncodeTask)]
-        running_2pass = len(t for t in running_tasks if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
-        pass1 = len(t for t in video_tasks if t.is_first_pass)
+        running_2pass = sum(1 for t in running_tasks if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
+        pass1 = sum(1 for t in video_tasks if t.is_first_pass)
         pass2 = len(video_tasks) - pass1
         need_lookahead = self.limit_2pass.limit - (pass2 - pass1)
         remaining_limit = self.limit_1pass.limit - min(running_2pass + pass2, self.limit_2pass.limit)
@@ -202,7 +202,7 @@ class ExtractStereoAudioTask(AudioBaseTask):
 
 class LimitCpuUsageMixin(object):
     def _compute_limit(self, remaining_tasks, running_tasks):
-        total_2pass = len(t for t in (remaining_tasks + running_tasks) if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
+        total_2pass = sum(1 for t in (remaining_tasks + running_tasks) if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
         needed_limit = min(total_2pass, VideoEncodeTask.limit_2pass.limit)
         return self.cpu_limit._replace(limit=self.cpu_limit.limit - needed_limit)
 
