@@ -206,7 +206,7 @@ class LimitCpuUsageMixin(object):
         needed_limit = min(total_2pass, VideoEncodeTask.limit_2pass.limit)
         return self.cpu_limit._replace(limit=self.cpu_limit.limit - needed_limit)
 
-class DownmixToStereoTask(AudioBaseTask, LimitCpuUsageMixin):
+class DownmixToStereoTask(LimitCpuUsageMixin, AudioBaseTask):
     ''' Extract non-stereo audio tracks with downmixing to stereo for normalizing, so that we have all tracks
     that are normalized (normalizing a properly designed 5.1 audio means destroying its quality, but
     having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware) '''
@@ -222,7 +222,7 @@ class DownmixToStereoTask(AudioBaseTask, LimitCpuUsageMixin):
                 '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
                 '-vn', '-y', self.encoder.make_tempfile('audio-%d-2ch' % self.track_id)]
 
-class NormalizeStereoTask(AudioBaseTask, LimitCpuUsageMixin):
+class NormalizeStereoTask(LimitCpuUsageMixin, AudioBaseTask):
     cpu_limit = ResourceLimit(resource=Resource.CPU_OTHER, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id, parent_task):
         AudioBaseTask.__init__(self, encoder, track_id)
@@ -234,7 +234,7 @@ class NormalizeStereoTask(AudioBaseTask, LimitCpuUsageMixin):
                 '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                 '-o', self.encoder.make_tempfile('audio-%d-2ch' % self.track_id), '-vn']
 
-class AudioEncodeTask(AudioBaseTask, LimitCpuUsageMixin):
+class AudioEncodeTask(LimitCpuUsageMixin, AudioBaseTask):
     cpu_limit = ResourceLimit(resource=Resource.CPU_OTHER, limit=NUM_THREADS-1)
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
