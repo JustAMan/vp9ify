@@ -26,16 +26,16 @@ else:
             while True:
                 handle = open_with_dir(self.path, 'w')
                 try:
-                    logging.info('Trying to grab lock "%s"' % self.path)
+                    logging.debug('Trying to grab lock "%s"' % self.path)
                     fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
                     # now check that file wasn't deleted while we were waiting for the lock
                     link = os.readlink('/proc/self/fd/%d' % handle.fileno())
                     if os.path.isabs(link) and os.path.abspath(link) == self.path:
                         # yay, we succeeded
-                        logging.info('Grabbed lock "%s"' % self.path)
+                        logging.debug('Grabbed lock "%s"' % self.path)
                         break
                     else:
-                        logging.info('File "%s" was deleted while we were waiting to lock it!' % self.path)
+                        logging.debug('File "%s" was deleted while we were waiting to lock it!' % self.path)
                 except:
                     handle.close()
                     raise
