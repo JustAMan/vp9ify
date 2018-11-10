@@ -9,6 +9,8 @@ except ImportError:
     import pickle
 import logging
 
+from .locked_state import LockedState
+
 class Resource:
     CPU = 'cpu'
     IO = 'i/o'
@@ -34,10 +36,10 @@ class IParallelTask(object):
         return not (self == other)
 
 class Executor:
-    def __init__(self, resume_file, scriptize=False):
-        self.resume_file = resume_file
-        with open(self.resume_file, 'rb') as inp:
-            self.tasklists = pickle.loads(inp.read())
+    def __init__(self, state, scriptize=False):
+        self.state = state
+        with self.state:
+            self.tasklists = self.state.read()
 
         logging.info('Amount of batches: %d' % len(self.tasklists))
         self.unfinished = copy.deepcopy(self.tasklists)
@@ -72,13 +74,24 @@ class Executor:
             assert self.unfinished[list_idx][task_idx] == task
             self.unfinished[list_idx][task_idx] = None
             if not self.scriptize:
-                with open(self.resume_file, 'wb') as out:
-                    out.write(pickle.dumps(self.unfinished))
+                with self.state:
+                    tasklists = self.state.read()
+                    for li, row in enumerate(self.unfinished):
+                        for ti, task in enumerate(row):
+                            if task is None:
+                                tasklists[li][ti] = None
+                    # read new tasklists
+                    self.tasklists.extend(tasklists[len(self.unfinished):])
+                    # now update unfinished stuff
+                    self.unfinished = tasklists
+                    self.state.write(self.unfinished)
 
     def __run_task(self, list_idx, task_idx, task, limit):
         try:
             try:
-                task.scriptize() if self.scriptize else task()
+                task.scriptize()
+                if not self.scriptize:
+                    task()
             except:
                 logging.exception('Error in %s' % task)
             else:
@@ -113,4 +126,11 @@ class Executor:
         for th in threads:
             th.join()
         if not self.scriptize and not self.unfinished:
-            os.unlink(self.resume_file)
+            with self.state:
+                # check that state is really empty before removing it
+                tasklists = self.state.read()
+                remaining = []
+                for tl in tasklists:
+                    remaining.extend(t for t in tl if t)
+                if not remaining:
+                    self.state.remove()

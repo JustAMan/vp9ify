@@ -14,6 +14,7 @@ logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
 from recode.media import PARSERS, MediaEntry, MediaEncoder
+from recode.locked_state import LockedState
 
 def parse_fentry(fentry, suffix):
     fname, fpath = fentry
@@ -64,6 +65,7 @@ def main():
         resume_file = os.path.abspath(os.path.join(args.source, 'tasks.pickle'))
     else:
         resume_file = os.path.abspath(args.state)
+    state = LockedState(resume_file)
 
     if args.log or args.source:
         logpath = os.path.abspath(args.log or os.path.join(args.source, 'recode.log'))
@@ -91,27 +93,26 @@ def main():
             for entry in entries:
                 entry.interact()
 
-        try:
-            with open_with_dir(resume_file, 'wb') as inp:
-                tasks = pickle.loads(inp.read())
-        except IOError:
-            tasks = []
-            logging.info('Resume file "%s" does not exist, starting from scratch' % resume_file)
-        else:
-            logging.info('Resume file "%s" exists, appending' % resume_file)
-        
-        for entry in entries:
-            tasks.append(MediaEncoder(entry, args.dest, logpath or None).make_tasks())
-        with open_with_dir(resume_file, 'wb') as out:
-            out.write(pickle.dumps(tasks))
+        with state:
+            try:
+                tasks = state.read()
+            except IOError:
+                tasks = []
+                logging.info('Resume file "%s" does not exist, starting from scratch' % resume_file)
+            else:
+                logging.info('Resume file "%s" exists, appending' % resume_file)
+            
+            for entry in entries:
+                tasks.append(MediaEncoder(entry, args.dest, logpath or None).make_tasks())
+            state.write(tasks)
 
     if args.scriptize:
         logging.info('Scriptizing started')
-        Executor(resume_file, scriptize=True).execute()
+        Executor(state, scriptize=True).execute()
         logging.info('Scriptizing stopped')
     elif not args.nostart:
         logging.info('Recoding started')
-        Executor(resume_file).execute()
+        Executor(state).execute()
         logging.info('Recoding stopped')
 
 if __name__ == '__main__':
