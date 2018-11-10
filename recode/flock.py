@@ -43,5 +43,5 @@ else:
             return self
         def __exit__(self, *a, **kw):
             os.unlink(self.path)
-            logging.info('Letting go of lock "%s"' % self.path)
+            logging.debug('Letting go of lock "%s"' % self.path)
             self.handle.close()
