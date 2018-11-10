@@ -154,9 +154,9 @@ class VideoEncodeTask(EncoderTask):
         running_2pass = sum(1 for t in running_tasks if isinstance(t, VideoEncodeTask) and not t.is_first_pass)
         pass1 = sum(1 for t in video_tasks if t.is_first_pass)
         pass2 = len(video_tasks) - pass1
-        need_lookahead = self.limit_2pass.limit - (pass2 - pass1)
+        need_lookahead = max(0, self.limit_2pass.limit - (pass2 - pass1))
         remaining_limit = self.limit_1pass.limit - min(running_2pass + pass2, self.limit_2pass.limit)
-        return self.limit_1pass._replace(limit=max(remaining_limit, need_lookahead))
+        return self.limit_1pass._replace(limit=min(remaining_limit, need_lookahead))
 
     @property
     def name(self):
