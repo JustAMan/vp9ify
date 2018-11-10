@@ -12,7 +12,7 @@ class LockedState(object):
         self.path = state_path
 
     def __enter__(self):
-        self.lock.__enter__(self)
+        self.lock.__enter__()
         return self
     
     def __exit__(self, *a, **kw):
