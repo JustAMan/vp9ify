@@ -68,16 +68,16 @@ class Executor:
                     if task.resource.kind == resource.kind and task.resource.priority <= resource.priority:
                         count += 1
                 resource_uses[resource] = count
-            dbg_items = []
-            for ((name, prio), count) in sorted(resource_uses.items()):
-                dbg_items.append('%s-%s=%s' % (name, prio, count))
-            logging.debug('Resources: %s' % ('|'.join(dbg_items)))
 
             for resource, list_idx, task_idx, task in candidates:
                 limit = task.get_limit(all_tasks, self.running)
                 if resource_uses[resource] < limit:
                     self.tasklists[list_idx][task_idx] = None
                     self.running.append(task)
+                    dbg_items = []
+                    for ((name, prio), count) in sorted(resource_uses.items()):
+                        dbg_items.append('%s-%s=%s' % (name, prio, count))
+                    logging.debug('Pre-task resource usage: %s' % ('|'.join(dbg_items)))
                     logging.info('Starting %s' % task)
                     logging.debug('Task resource: kind=%s, prio=%s, limit=%s' % (resource.kind, resource.priority, limit))
                     return list_idx, task_idx, task, limit
