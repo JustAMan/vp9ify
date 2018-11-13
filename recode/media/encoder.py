@@ -8,7 +8,7 @@ import logging
 import stat
 import re
 
-from ..helpers import which, open_with_dir, ensuredir, NUM_THREADS
+from ..helpers import which, open_with_dir, ensuredir
 from ..tasks import IParallelTask, Resource, ResourceKind
 from .info import MediaInfo
 from ..flock import FLock
@@ -163,7 +163,7 @@ class VideoEncodeTask(EncoderTask):
 
 class VideoEncode1PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=1)
-    static_limit = NUM_THREADS - 1
+    static_limit = 5
     def __init__(self, encoder):
         VideoEncodeTask.__init__(self, encoder, True)
     def get_limit(self, candidate_tasks, running_tasks):
@@ -173,7 +173,7 @@ class VideoEncode1PassTask(VideoEncodeTask):
 
 class VideoEncode2PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=0)
-    static_limit = NUM_THREADS - 2
+    static_limit = 4
     def __init__(self, encoder):
         VideoEncodeTask.__init__(self, encoder, False)
 
@@ -207,7 +207,7 @@ class DownmixToStereoTask(AudioBaseTask):
     that are normalized (normalizing a properly designed 5.1 audio means destroying its quality, but
     having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware) '''
     resource = Resource(kind=ResourceKind.CPU, priority=2)
-    static_limit = NUM_THREADS
+    static_limit = 6
     def __init__(self, encoder, track_id, stdout=None):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only works with non-stereo
@@ -221,7 +221,7 @@ class DownmixToStereoTask(AudioBaseTask):
 
 class NormalizeStereoTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
-    static_limit = NUM_THREADS
+    static_limit = 6
     def __init__(self, encoder, track_id, parent_task):
         AudioBaseTask.__init__(self, encoder, track_id)
         self.blockers.append(parent_task.name)
@@ -234,7 +234,7 @@ class NormalizeStereoTask(AudioBaseTask):
 
 class AudioEncodeTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
-    static_limit = NUM_THREADS
+    static_limit = 6
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
         # encoding without normalization is applied to non-stereo only
