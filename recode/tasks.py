@@ -64,8 +64,13 @@ class Executor:
             resource_uses = {}
             for resource in resourses:
                 count = 0
+                # first calculate current resource usage
                 for task in self.running:
                     if task.resource.kind == resource.kind and task.resource.priority <= resource.priority:
+                        count += 1
+                # now reserve resource usage for candidates that have higher priority
+                for task in all_tasks:
+                    if task.resource.kind == resource.kind and task.resource.priority < resource.priority:
                         count += 1
                 resource_uses[resource] = count
 

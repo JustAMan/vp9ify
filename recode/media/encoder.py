@@ -6,6 +6,7 @@ import errno
 import glob
 import logging
 import stat
+import re
 
 from ..helpers import which, open_with_dir, ensuredir, NUM_THREADS
 from ..tasks import IParallelTask, Resource, ResourceKind
@@ -15,6 +16,7 @@ from ..flock import FLock
 class EncoderTask(IParallelTask):
     BLOCKERS = ()
     static_limit = 1
+    _STRIP_TASK = re.compile(r'^(.*)Task$')
 
     def __init__(self, encoder):
         self.encoder = encoder
@@ -30,7 +32,7 @@ class EncoderTask(IParallelTask):
 
     @classmethod
     def _get_name(cls):
-        return cls.__name__.rstrip('Task')
+        return cls._STRIP_TASK.sub(r'\1', cls.__name__)
 
     @property
     def name(self):
@@ -169,7 +171,7 @@ class VideoEncode1PassTask(VideoEncodeTask):
         pass1 = sum(1 for t in video_tasks if t.is_first_pass)
         pass2 = len(video_tasks) - pass1
         need_lookahead = max(0, VideoEncode2PassTask.static_limit - (pass2 - pass1))
-        return min(self.static_limit, need_lookahead)
+        return min(self.static_limit, VideoEncode2PassTask.static_limit + need_lookahead)
 
 class VideoEncode2PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=0)
