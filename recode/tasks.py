@@ -19,7 +19,7 @@ Resource = collections.namedtuple('Resource', 'kind priority')
 
 class IParallelTask(object):
     resource = None
-    def get_limit(self, remaining_tasks, running_tasks):
+    def get_limit(self, candidate_tasks, running_tasks):
         raise NotImplementedError()
     def __call__(self):
         raise NotImplementedError()
@@ -63,21 +63,30 @@ class Executor:
                         resourses.add(task.resource)
             candidates.sort()
 
+            candidates_limit = []
+            for resource, list_idx, task_idx, task in candidates:
+                candidates_limit.append((task.get_limit(all_tasks, self.running), resource, list_idx, task_idx, task))
+
             resource_uses = {}
             for resource in resourses:
-                count = 0
+                my_count, higher_count = 0, 0
                 # first calculate current resource usage
                 for task in self.running:
-                    if task.resource.kind == resource.kind and task.resource.priority <= resource.priority:
-                        count += 1
+                    if task.resource.kind == resource.kind:
+                        if task.resource.priority < resource.priority:
+                            higher_count += 1
+                        elif task.resource.priority == resource.priority:
+                            my_count += 1
                 # now reserve resource usage for candidates that have higher priority
-                for task in all_tasks:
-                    if task.resource.kind == resource.kind and task.resource.priority < resource.priority:
-                        count += 1
-                resource_uses[resource] = count
+                candidate_usage, maxlimit = 0, 0
+                for limit, task_res, _, _, _ in candidates_limit:
+                    if task_res.kind == resource.kind and task_res.priority < resource.priority:
+                        candidate_usage += 1
+                        if limit > maxlimit:
+                            maxlimit = limit
+                resource_uses[resource] = my_count + min(higher_count + candidate_usage, maxlimit)
 
-            for resource, list_idx, task_idx, task in candidates:
-                limit = task.get_limit(all_tasks, self.running)
+            for limit, resource, list_idx, task_idx, task in candidates_limit:
                 if resource_uses[resource] < limit:
                     self.tasklists[list_idx][task_idx] = None
                     self.running.append(task)

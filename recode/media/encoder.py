@@ -114,7 +114,7 @@ class EncoderTask(IParallelTask):
             stats = os.stat(script)
             os.chmod(script, stats.st_mode | stat.S_IXUSR)
 
-    def get_limit(self, remaining_tasks, running_tasks):
+    def get_limit(self, candidate_tasks, running_tasks):
         return self.static_limit
 
 class RemoveScriptTask(EncoderTask):
@@ -166,11 +166,9 @@ class VideoEncode1PassTask(VideoEncodeTask):
     static_limit = NUM_THREADS - 1
     def __init__(self, encoder):
         VideoEncodeTask.__init__(self, encoder, True)
-    def get_limit(self, remaining_tasks, running_tasks):
-        video_tasks = [t for t in remaining_tasks if isinstance(t, VideoEncodeTask)]
-        pass1 = sum(1 for t in video_tasks if t.is_first_pass)
-        pass2 = len(video_tasks) - pass1
-        need_lookahead = max(0, VideoEncode2PassTask.static_limit - (pass2 - pass1))
+    def get_limit(self, candidate_tasks, running_tasks):
+        pass2count = sum(1 for t in candidate_tasks if isinstance(t, VideoEncode2PassTask))
+        need_lookahead = max(0, VideoEncode2PassTask.static_limit - pass2count)
         return min(self.static_limit, VideoEncode2PassTask.static_limit + need_lookahead)
 
 class VideoEncode2PassTask(VideoEncodeTask):
