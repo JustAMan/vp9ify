@@ -191,7 +191,7 @@ class AudioBaseTask(EncoderTask):
 
 class ExtractStereoAudioTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.IO, priority=1)
-    static_limit = 4
+    static_limit = 2
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only extracts stereo
@@ -207,7 +207,7 @@ class DownmixToStereoTask(AudioBaseTask):
     that are normalized (normalizing a properly designed 5.1 audio means destroying its quality, but
     having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware) '''
     resource = Resource(kind=ResourceKind.CPU, priority=2)
-    static_limit = NUM_THREADS - 1
+    static_limit = NUM_THREADS
     def __init__(self, encoder, track_id, stdout=None):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only works with non-stereo
@@ -221,7 +221,7 @@ class DownmixToStereoTask(AudioBaseTask):
 
 class NormalizeStereoTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
-    static_limit = NUM_THREADS - 1
+    static_limit = NUM_THREADS
     def __init__(self, encoder, track_id, parent_task):
         AudioBaseTask.__init__(self, encoder, track_id)
         self.blockers.append(parent_task.name)
@@ -234,7 +234,7 @@ class NormalizeStereoTask(AudioBaseTask):
 
 class AudioEncodeTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
-    static_limit = NUM_THREADS - 1
+    static_limit = NUM_THREADS
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
         # encoding without normalization is applied to non-stereo only
@@ -278,7 +278,7 @@ class RemuxTask(EncoderTask):
 
 class ExtractSubtitlesTask(EncoderTask):
     resource = Resource(kind=ResourceKind.IO, priority=1)
-    static_limit = 4
+    static_limit = 2
     def _make_command(self):
         subtitles = self.info.get_subtitles()
         if subtitles:
