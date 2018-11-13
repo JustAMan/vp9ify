@@ -211,7 +211,7 @@ class DownmixToStereoTask(AudioBaseTask):
 
     def _make_command(self):
         return [self.encoder.FFMPEG, '-i', self.media.src,
-                '-map', '0:%d:0' % self.track_id, '-c:a', 'aac', '-b:a', self.media.AUDIO_INTERMEDIATE_BITRATE,
+                '-map', '0:%d:0' % self.track_id, '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_INTERMEDIATE_BITRATE,
                 '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
                 '-vn', '-y', self.encoder.make_tempfile('audio-%d-2ch' % self.track_id)]
 

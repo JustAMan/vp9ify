@@ -132,9 +132,9 @@ class Executor:
     def __run_task(self, list_idx, task_idx, task, limit):
         try:
             try:
-                task.scriptize()
                 if not self.scriptize:
                     task()
+                task.scriptize()
             except:
                 logging.exception('Error in %s' % task)
             else:
