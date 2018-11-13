@@ -35,10 +35,12 @@ class IParallelTask(object):
         return not (self == other)
 
 class Executor:
+    UPDATE_DELAY = 20
     def __init__(self, state, scriptize=False):
         self.state = state
         with self.state:
             self.tasklists = self.state.read()
+            self.state_updated = time.time()
 
         nonempty = sum(1 if any(tl) else 0 for tl in self.tasklists)
         logging.info('Amount of batches: %d' % nonempty)
@@ -87,6 +89,19 @@ class Executor:
                     logging.debug('Task resource: kind=%s, prio=%s, limit=%s' % (resource.kind, resource.priority, limit))
                     return list_idx, task_idx, task, limit
         return None, None, None, None
+
+    def __update_state(self):
+        if self.state_updated + self.UPDATE_DELAY > time.time():
+            # do not update too frequently
+            return
+        with self.state, self.lock:
+            self.state_updated = time.time()
+            tasklists = self.state.read()
+            logging.debug('Refreshing executor state, read %d batches' % len(tasklists))
+            new_tasks = tasklists[len(self.unfinished):]
+            if new_tasks:
+                logging.info('Adding %d more batches' % len(new_tasks))
+                self.tasklists.extend(new_tasks)
 
     def __mark_finished(self, list_idx, task_idx, task):
         with self.lock:
@@ -139,6 +154,7 @@ class Executor:
                 elif not self.running:
                     logging.warning('Exiting due to empty running queue while some tasks still remain, this is probably a bug')
                     break
+            self.__update_state()
             time.sleep(0.5)
         for th in threads:
             th.join()
