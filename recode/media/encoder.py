@@ -142,10 +142,6 @@ class VideoEncodeTask(EncoderTask):
     def _get_compare_attrs(self):
         return EncoderTask._get_compare_attrs(self) + [self.is_first_pass]
 
-    @property
-    def name(self):
-        return '%s-pass=%d' % (self._get_name(), 1 if self.is_first_pass else 2)
-
     def can_run(self, batch_tasks):
         all_transcodes = [t for t in batch_tasks if isinstance(t, VideoEncodeTask)]
         return all_transcodes[0] == self and EncoderTask.can_run(self, batch_tasks)
