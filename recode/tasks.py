@@ -53,50 +53,59 @@ class Executor:
         with self.lock:
             candidates = []
             all_tasks = []
-            resourses = set(task.resource for task in self.running)
             for list_idx, tasklist in enumerate(self.tasklists):
                 not_done = self.unfinished[list_idx]
                 for task_idx, task in enumerate(tasklist):
                     if task and task.can_run(not_done):
                         candidates.append((task.resource, list_idx, task_idx, task))
                         all_tasks.append(task)
-                        resourses.add(task.resource)
             candidates.sort()
 
             candidates_limit = []
+            resource_slots = collections.defaultdict(lambda: collections.defaultdict(int))
             for resource, list_idx, task_idx, task in candidates:
-                candidates_limit.append((task.get_limit(all_tasks, self.running), resource, list_idx, task_idx, task))
+                limit = task.get_limit(all_tasks, self.running)
+                candidates_limit.append((limit, resource, list_idx, task_idx, task))
+                resource_slots[resource.kind][resource.priority] = max(resource_slots[resource.kind][resource.priority], limit)
 
-            resource_uses = {}
-            for resource in resourses:
-                my_count, higher_count = 0, 0
-                # first calculate current resource usage
-                for task in self.running:
-                    if task.resource.kind == resource.kind:
-                        if task.resource.priority < resource.priority:
-                            higher_count += 1
-                        elif task.resource.priority == resource.priority:
-                            my_count += 1
-                # now reserve resource usage for candidates that have higher priority
-                candidate_usage, maxlimit = 0, 0
-                for limit, task_res, _, _, _ in candidates_limit:
-                    if task_res.kind == resource.kind and task_res.priority < resource.priority:
-                        candidate_usage += 1
-                        if limit > maxlimit:
-                            maxlimit = limit
-                resource_uses[resource] = my_count + min(higher_count + candidate_usage, maxlimit)
+            resource_uses = collections.defaultdict(lambda: collections.defaultdict(int))
+            for task in self.running:
+                resource_uses[task.resource.kind][task.resource.priority] += 1
+            
+            found_resource = None
+            for resource_kind, slots in sorted(resource_slots.items()):
+                for resource_priority in sorted(slots.keys()):
+                    # check if taking one more task of given priority fits
+                    potential = copy.deepcopy(resource_uses[resource_kind])
+                    potential[resource_priority] += 1
+                    for priority in set(potential.keys() + slots.keys()):
+                        total = 0
+                        for potential_prio, users in potential.items():
+                            if potential_prio <= priority:
+                                total += users
+                        if total > slots[priority]:
+                            # violates one of slot constraints :(
+                            break
+                    else:
+                        # all priorities are fine, we found what we sought!
+                        found_resource = Resource(kind=resource_kind, priority=resource_priority)
+                        break
+                if found_resource is not None:
+                    break
 
-            for limit, resource, list_idx, task_idx, task in candidates_limit:
-                if resource_uses[resource] < limit:
-                    self.tasklists[list_idx][task_idx] = None
-                    self.running.append(task)
-                    dbg_items = []
-                    for ((name, prio), count) in sorted(resource_uses.items()):
-                        dbg_items.append('%s-%s=%s' % (name, prio, count))
-                    logging.debug('Pre-task resource usage: %s' % ('|'.join(dbg_items)))
-                    logging.info('Starting %s' % task)
-                    logging.debug('Task resource: kind=%s, prio=%s, limit=%s' % (resource.kind, resource.priority, limit))
-                    return list_idx, task_idx, task, limit
+            if found_resource is not None:
+                for limit, resource, list_idx, task_idx, task in candidates_limit:
+                    if resource == found_resource:
+                        self.tasklists[list_idx][task_idx] = None
+                        self.running.append(task)
+                        dbg_items = []
+                        for name, slots in sorted(resource_uses.items()):
+                            for priority, users in sorted(slots.items()):
+                                dbg_items.append('%s-%s=%s' % (name, priority, users))
+                        logging.debug('Pre-task resource usage: %s' % ('|'.join(dbg_items)))
+                        logging.info('Starting %s' % task)
+                        logging.debug('Task resource: kind=%s, prio=%s, limit=%s' % (resource.kind, resource.priority, limit))
+                        return list_idx, task_idx, task, limit
         return None, None, None, None
 
     def __update_state(self):
