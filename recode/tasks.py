@@ -120,6 +120,7 @@ class Executor:
             if new_tasks:
                 logging.info('Adding %d more batches' % len(new_tasks))
                 self.tasklists.extend(new_tasks)
+                self.unfinished.extend(copy.deepcopy(new_tasks))
 
     def __mark_finished(self, list_idx, task_idx, task):
         with self.lock:
