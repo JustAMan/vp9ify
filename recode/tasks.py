@@ -74,6 +74,9 @@ class Executor:
             
             found_resource = None
             for resource_kind, slots in sorted(resource_slots.items()):
+                for running_prio, running_users in resource_uses[resource_kind].items():
+                    if running_prio not in slots:
+                        slots[running_prio] = running_users
                 for resource_priority in sorted(slots.keys()):
                     # check if taking one more task of given priority fits
                     potential = copy.deepcopy(resource_uses[resource_kind])
