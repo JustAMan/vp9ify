@@ -4,7 +4,6 @@ from ..helpers import input_numbers, confirm_yesno
 class MediaEntry(object):
     LUFS_LEVEL = -14
     AUDIO_FREQ = 48000
-    AUDIO_INTERMEDIATE_BITRATE = '512k'
     AUDIO_BITRATE = '192k'
     AUDIO_QUALITY = 5
     SPEED_FIRST = 4

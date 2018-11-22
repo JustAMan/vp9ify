@@ -1,3 +1,8 @@
+import collections
+import subprocess
+
+AudioCodecOptions = collections.namedtuple('AudioCodecOptions', 'name bitrate extra')
+
 from ..tasks import IParallelTask, Resource, ResourceKind
 from .base_tasks import EncoderTask
 
@@ -47,7 +52,7 @@ class DownmixToStereoTask(AudioBaseTask):
 
     def _make_command(self):
         return [self.encoder.FFMPEG, '-i', self.media.src,
-                '-map', '0:%d:0' % self.track_id, '-c:a', 'aac', '-b:a', self.media.AUDIO_INTERMEDIATE_BITRATE,
+                '-map', '0:%d:0' % self.track_id, '-c:a', 'aac', '-b:a', '512k',
                 '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
                 '-vn', '-y'] + self.produced_file
 
@@ -62,9 +67,15 @@ class NormalizeStereoTask(AudioBaseTask):
     def produced_files(self):
         return [self.encoder.make_tempfile('audio-%d-2ch' % self.track_id)]
 
+    def _get_codec_options(self):
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
+
     def _make_command(self):
+        options = self._get_codec_options()
+        bitrate = ['-b:a', options.bitrate] if options.bitrate else []
+        extra = ['-e=%s' % subprocess.list2cmdline(str(x) for x in options.extra)] if options.extra else []
         return [self.encoder.FFMPEG_NORM, self.encoder.make_tempfile('audio-%d-2ch' % self.track_id),
-                '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-e=-aq %s' % self.media.AUDIO_QUALITY,
+                '-c:a', options.name] + bitrate + extra + [
                 '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                 '-vn', '-o'] + self.produced_files
 
@@ -80,8 +91,13 @@ class AudioEncodeTask(AudioBaseTask):
     def produced_files(self):
         return [self.encoder.make_tempfile('audio-%d' % self.track_id)]
 
+    def _get_codec_options(self):
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
+
     def _make_command(self):
+        options = self._get_codec_options()
+        bitrate = ['-b:a', options.bitrate] if options.bitrate else []
+        extra = list(options.extra) if options.extra else []
         return [self.encoder.FFMPEG, '-i', self.media.src,
                 '-map', '0:%d:0' % self.track_id, '-vn',
-                '-c:a', 'libvorbis', '-b:a', self.media.AUDIO_BITRATE, '-aq', self.media.AUDIO_QUALITY,
-                '-y'] + self.produced_file
+                '-c:a', options.name] + bitrate + extra + ['-y'] + self.produced_file

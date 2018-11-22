@@ -35,17 +35,18 @@ def _get_numthreads():
 NUM_THREADS = _get_numthreads()
 
 if sys.platform == 'win32':
-    def which(prog, env_name=None):
+    def which(prog, env_name=None, optional=False):
         ''' Stub for testing reasons '''
-        return prog
+        return None if optional else prog
 else:
-    def which(prog, env_name=None, _cache={}):
+    _which_cache = {}
+    def which(prog, env_name=None, optional=False):
         try:
-            result = _cache[prog]
+            result = _which_cache[prog]
         except KeyError:
             pass
         else:
-            if result is None:
+            if result is None and not optional:
                 raise RuntimeError('"%s" not found in PATH' % prog)
             return result
 
@@ -57,18 +58,19 @@ else:
             else:
                 path = os.path.abspath(path)
                 if os.access(path, os.X_OK):
-                    _cache[prog] = path
+                    _which_cache[prog] = path
                     return path
 
         for dname in os.environ['PATH'].split(os.pathsep):
             for ext in ('', '.exe', '.cmd', '.bat'):
                 path = os.path.join(dname, prog) + ext
                 if os.access(path, os.X_OK):
-                    _cache[prog] = path
+                    _which_cache[prog] = path
                     return path
 
-        _cache[prog] = None
-        raise RuntimeError('"%s" not found in PATH' % prog)
+        _which_cache[prog] = None
+        if not optional:
+            raise RuntimeError('"%s" not found in PATH' % prog)
 
 def _stop(cond):
     if cond:
