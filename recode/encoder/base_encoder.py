@@ -53,21 +53,24 @@ class BaseEncoder(object):
     def _make_video_tasks(self):
         raise NotImplementedError()
 
+    def _make_audio_track_tasks(self, audio_info):
+        audio_tasks = []
+        if audio_info.channels == 2:
+            prepare_2ch_task = ExtractStereoAudioTask(self, audio_info.track_id)
+        else:
+            prepare_2ch_task = DownmixToStereoTask(self, audio_info.track_id)
+            if self.AudioEncode:
+                audio_tasks.append(self.AudioEncode(self, audio_info.track_id))
+        audio_tasks.extend([prepare_2ch_task, self.NormalizeStereo(self, audio_info.track_id, prepare_2ch_task)])
+        return audio_tasks
+
     def _make_audio_tasks(self):
         audio_tasks = []
         for audio_info in self.info.get_audio_tracks():
-            track_id = audio_info.track_id
-            if track_id in self.media.ignored_audio_tracks:
-                logging.info('Skipping audio track %d in "%s"' % (track_id, self.media.friendly_name))
+            if audio_info.track_id in self.media.ignored_audio_tracks:
+                logging.info('Skipping audio track %d in "%s"' % (audio_info.track_id, self.media.friendly_name))
                 continue
-
-            if audio_info.channels == 2:
-                prepare_2ch_task = ExtractStereoAudioTask(self, track_id)
-            else:
-                prepare_2ch_task = DownmixToStereoTask(self, track_id)
-                if self.AudioEncode:
-                    audio_tasks.append(self.AudioEncode(self, track_id))
-            audio_tasks.extend([prepare_2ch_task, self.NormalizeStereo(self, track_id, prepare_2ch_task)])
+            audio_tasks.extend(self._make_audio_track_tasks(audio_info))
         return audio_tasks
 
     def make_tasks(self):
