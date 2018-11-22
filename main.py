@@ -60,9 +60,6 @@ def main():
     parser.add_argument('--force-params', type=str, default='', help='Additional parameters for forced media type')
     args = parser.parse_args()
 
-    if args.force_params and not args.force_type:
-        parser.print_help()
-        sys.exit('Cannot force params without forcing media type')
     if args.interactive and args.resume:
         parser.print_help()
         sys.exit('Cannot be interactive and resume at the same time')
@@ -104,10 +101,30 @@ def main():
         logging.info('Detected suffix as "%s"' % suffix)
 
         entries = []
+        entry_types = set()
+
         for fentry in inp:
             entry = parse_fentry(fentry, suffix, forced_parser, forced_params)
             logging.debug('Parsed entry "%s"' % entry.full_name)
             entries.append(entry)
+            entry_types.add(type(entry))
+
+        if not forced_parser and args.force_params:
+            if len(entry_types) != 1:
+                sys.exit('Cannot force params when multiple media types found')
+            forced_parser = list(entry_types)[0]
+            try:
+                forced_params = forced_parser.parse_parameters(args.force_params)
+            except BadParameters as err:
+                sys.exit('Incorrect parameters for "%s" media type: %s' % (forced_parser.FORCE_NAME, err.msg))
+            # re-parse entries
+            logging.debug('Re-parsing entries as forced params detected')
+            entries = []
+            for fentry in inp:
+                entry = parse_fentry(fentry, suffix, forced_parser, forced_params)
+                logging.debug('Parsed entry "%s"' % entry.full_name)
+                entries.append(entry)
+
         entries.sort(key=lambda fe: fe.comparing_key)
         if args.interactive:
             for entry in entries:
