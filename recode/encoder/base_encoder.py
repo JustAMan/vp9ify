@@ -13,6 +13,9 @@ class BaseEncoder(object):
     FFMPEG_NORM = which('ffmpeg-normalize', 'FFMPEG_NORM_PATH')
     MKVEXTRACT = which('mkvextract')
 
+    NormalizeStereo = NormalizeStereoTask
+    AudioEncode = AudioEncodeTask
+
     def __init__(self, media, dest, stdout=None):
         self.media = media
         self.src = media.src
@@ -30,14 +33,13 @@ class BaseEncoder(object):
     def __ne__(self, other):
         return not (self == other)
 
-    @property
-    def tmp_prefix(self):
+    def _get_tmp_prefix(self):
         return chop_tail(self.__class__.__name__, 'Encoder').lower()
 
     def make_tempfile(self, suffix='', ext='mkv', glob_suffix=None):
         tmpdir = tempfile.gettempdir()
         ensuredir(tmpdir)
-        path = os.path.join(tmpdir, '%s.%s.%s' % (self.media.friendly_name, suffix, ext))
+        path = os.path.join(tmpdir, '%s-%s.%s.%s' % (self._get_tmp_prefix(), self.media.friendly_name, suffix, ext))
         if path not in self.tempfiles:
             self.tempfiles.append(path)
         if glob_suffix:
@@ -51,17 +53,19 @@ class BaseEncoder(object):
 
     def _make_audio_tasks(self):
         audio_tasks = []
-        for track_id, channel_count in self.info.get_audio_channels().items():
+        for audio_info in self.info.get_audio_tracks():
+            track_id = audio_info.track_id
             if track_id in self.media.ignored_audio_tracks:
                 logging.info('Skipping audio track %d in "%s"' % (track_id, self.media.friendly_name))
                 continue
 
-            if channel_count == 2:
+            if audio_info.channels == 2:
                 prepare_2ch_task = ExtractStereoAudioTask(self, track_id)
             else:
                 prepare_2ch_task = DownmixToStereoTask(self, track_id)
-                audio_tasks.append(AudioEncodeTask(self, track_id))
-            audio_tasks.extend([prepare_2ch_task, NormalizeStereoTask(self, track_id, prepare_2ch_task)])
+                if self.AudioEncode:
+                    audio_tasks.append(self.AudioEncode(self, track_id))
+            audio_tasks.extend([prepare_2ch_task, self.NormalizeStereo(self, track_id, prepare_2ch_task)])
         return audio_tasks
 
     def make_tasks(self):

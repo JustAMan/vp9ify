@@ -14,6 +14,9 @@ class AudioBaseTask(EncoderTask):
     def _get_compare_attrs(self):
         return EncoderTask._get_compare_attrs(self) + [self.track_id]
 
+    def _get_codec_options(self):
+        raise NotImplementedError()
+
     @property
     def name(self):
         return '%s-track=%d' % (self._get_name(), self.track_id)
@@ -67,9 +70,6 @@ class NormalizeStereoTask(AudioBaseTask):
     def produced_files(self):
         return [self.encoder.make_tempfile('audio-%d-2ch' % self.track_id)]
 
-    def _get_codec_options(self):
-        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
-
     def _make_command(self):
         options = self._get_codec_options()
         bitrate = ['-b:a', options.bitrate] if options.bitrate else []
@@ -90,9 +90,6 @@ class AudioEncodeTask(AudioBaseTask):
     @property
     def produced_files(self):
         return [self.encoder.make_tempfile('audio-%d' % self.track_id)]
-
-    def _get_codec_options(self):
-        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
 
     def _make_command(self):
         options = self._get_codec_options()

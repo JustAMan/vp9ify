@@ -1,6 +1,15 @@
 from ..tasks import IParallelTask, Resource, ResourceKind
 from .base_tasks import EncoderTask
+from .audio import NormalizeStereoTask, AudioEncodeTask, AudioCodecOptions
 from .base_encoder import BaseEncoder
+
+class VorbisNormalize(NormalizeStereoTask):
+    def _get_codec_options(self):
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
+
+class VorbisEncode(AudioEncodeTask):
+    def _get_codec_options(self):
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
 
 class VideoEncodeTask(EncoderTask):
     def __init__(self, encoder, is_first_pass):
@@ -25,17 +34,17 @@ class VideoEncodeTask(EncoderTask):
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
                '-passlogfile', self.encoder.make_tempfile('ffmpeg2pass', 'log', '-*.log'), '-y', self.encoder.make_tempfile('vp9-audio=no')]
 
-class VideoEncode1PassTask(VideoEncodeTask):
+class Vp9CrfEncode1PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=1)
     static_limit = 5
     def __init__(self, encoder):
         VideoEncodeTask.__init__(self, encoder, True)
     def get_limit(self, candidate_tasks, running_tasks):
-        pass2count = sum(1 for t in candidate_tasks if isinstance(t, VideoEncode2PassTask))
-        need_lookahead = max(0, VideoEncode2PassTask.static_limit - pass2count)
-        return min(self.static_limit, VideoEncode2PassTask.static_limit + need_lookahead)
+        pass2count = sum(1 for t in candidate_tasks if isinstance(t, Vp9CrfEncode2PassTask))
+        need_lookahead = max(0, Vp9CrfEncode2PassTask.static_limit - pass2count)
+        return min(self.static_limit, Vp9CrfEncode2PassTask.static_limit + need_lookahead)
 
-class VideoEncode2PassTask(VideoEncodeTask):
+class Vp9CrfEncode2PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=0)
     static_limit = 4
     def __init__(self, encoder):
@@ -75,5 +84,8 @@ class VP9CRFEncoder(BaseEncoder):
     QMAX_COEFF = 5./4.
     # QMAX = CRF * QMAX_COEFF
 
+    NormalizeStereo = VorbisNormalize
+    AudioEncode = VorbisEncode
+
     def _make_video_tasks(self):
-        return [VideoEncode1PassTask(self), VideoEncode2PassTask(self)]
+        return [Vp9CrfEncode1PassTask(self), Vp9CrfEncode2PassTask(self)]
