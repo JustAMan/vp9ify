@@ -1,3 +1,7 @@
+import collections
+
+WebmCrfOptions = collections.namedtuple('WebmCrfOptions', 'target_1080_crf audio_quality speed_first speed_second')
+
 from ..tasks import IParallelTask, Resource, ResourceKind
 from .base_tasks import EncoderTask
 from .audio import NormalizeStereoTask, AudioEncodeTask, AudioCodecOptions
@@ -5,11 +9,11 @@ from .base_encoder import BaseEncoder
 
 class VorbisNormalize(NormalizeStereoTask):
     def _get_codec_options(self):
-        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.webm_options.audio_quality))
 
 class VorbisEncode(AudioEncodeTask):
     def _get_codec_options(self):
-        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.AUDIO_QUALITY))
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.webm_options.audio_quality))
 
 class VideoEncodeTask(EncoderTask):
     def __init__(self, encoder, is_first_pass):
@@ -24,9 +28,10 @@ class VideoEncodeTask(EncoderTask):
         return all_transcodes[0] == self and EncoderTask.can_run(self, batch_tasks)
 
     def _make_command(self):
-        crf = (self.encoder.CRF_PROP * self.info.get_video_diagonal() ** self.encoder.CRF_POW) * self.media.TARGET_1080_QUALITY / self.encoder.CRF_VP9_1080P
+        crf = (self.encoder.CRF_PROP * self.info.get_video_diagonal() ** self.encoder.CRF_POW) * \
+                self.media.webm_options.target_1080_crf / self.encoder.CRF_VP9_1080P
         qmax = crf * self.encoder.QMAX_COEFF
-        speed = self.media.SPEED_FIRST if self.is_first_pass else self.media.SPEED_SECOND
+        speed = self.media.webm_options.speed_first if self.is_first_pass else self.media.webm_options.speed_second
         passno = 1 if self.is_first_pass else 2
 
         return [self.encoder.FFMPEG, '-i', self.media.src, '-g', 240,

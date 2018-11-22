@@ -2,16 +2,12 @@ import re
 import os
 import hashlib
 
-from .base import MediaEntry
+from .base import MediaEntry, UnknownFile
 
-from ..encoder.vp9crf import VP9CRFEncoder
+from ..encoder.vp9crf import VP9CRFEncoder, WebmCrfOptions
 
 class SeriesEpisode(MediaEntry):
-    TARGET_1080_QUALITY = 24
-    AUDIO_QUALITY = 4
-    AUDIO_BITRATE = '128k'
-    SPEED_FIRST = 5
-    SPEED_SECOND = 2
+    webm_options = WebmCrfOptions(target_1080_crf=24, audio_quality=24, speed_first=5, speed_second=2)
 
     def __init__(self, src, series, season, episode, name):
         MediaEntry.__init__(self, src)
@@ -54,5 +50,5 @@ class SeriesEpisode(MediaEntry):
             series, season, episode, name = re.match(r'(.*)\WS(\d+)E(\d+)(?:E\d+)?\W(.*)$', fname).groups()
             season, episode = int(season), int(episode)
         except (AttributeError, ValueError):
-            raise cls.UnknownFile()
+            raise UnknownFile()
         return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))

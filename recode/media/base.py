@@ -1,16 +1,12 @@
 from .info import MediaInfo
 from ..helpers import input_numbers, confirm_yesno
 
+class UnknownFile(Exception):
+    pass
+
 class MediaEntry(object):
     LUFS_LEVEL = -14
     AUDIO_FREQ = 48000
-    AUDIO_BITRATE = '192k'
-    AUDIO_QUALITY = 5
-    SPEED_FIRST = 4
-    SPEED_SECOND = 1
-
-    # Value of -crf for VP9 *if* video would be 1080p (recalculated according to video size)
-    TARGET_1080_QUALITY = 23
 
     def __init__(self, src):
         self.src = src
