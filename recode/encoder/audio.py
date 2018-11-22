@@ -57,7 +57,7 @@ class DownmixToStereoTask(AudioBaseTask):
         return [self.encoder.FFMPEG, '-i', self.media.src,
                 '-map', '0:%d:0' % self.track_id, '-c:a', 'aac', '-b:a', '512k',
                 '-ac', 2, '-af', 'pan=stereo|FL < 1.0*FL + 0.707*FC + 0.707*BL|FR < 1.0*FR + 0.707*FC + 0.707*BR',
-                '-vn', '-y'] + self.produced_file
+                '-vn', '-y'] + self.produced_files
 
 class NormalizeStereoTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
@@ -97,4 +97,4 @@ class AudioEncodeTask(AudioBaseTask):
         extra = list(options.extra) if options.extra else []
         return [self.encoder.FFMPEG, '-i', self.media.src,
                 '-map', '0:%d:0' % self.track_id, '-vn',
-                '-c:a', options.name] + bitrate + extra + ['-y'] + self.produced_file
+                '-c:a', options.name] + bitrate + extra + ['-y'] + self.produced_files

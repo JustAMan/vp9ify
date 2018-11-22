@@ -7,8 +7,10 @@ from .base import MediaEntry, UnknownFile, BadParameters
 from ..encoder.vp9crf import VP9CRFEncoder, WebmCrfOptions
 
 class SeriesEpisode(MediaEntry):
-    webm_options = WebmCrfOptions(target_1080_crf=24, audio_quality=24, speed_first=5, speed_second=2)
+    webm_options = WebmCrfOptions(target_1080_crf=24, audio_quality=4, speed_first=5, speed_second=2)
     FORCE_NAME = 'series'
+    CONTAINER = 'webm'
+    STRIP_SUFFIX = True
 
     def __init__(self, src, series, season, episode, name):
         MediaEntry.__init__(self, src)
@@ -37,19 +39,8 @@ class SeriesEpisode(MediaEntry):
     def make_encode_tasks(self, dest, logpath):
         return VP9CRFEncoder(self, dest, logpath).make_tasks()
 
-    def __get_target_path(self, dest, suffix, ext):
+    def _get_target_path(self, dest, suffix, ext):
         return os.path.join(dest, self.series, 'S%02d' % self.season, '%s%s.%s' % (self.friendly_name, suffix, ext))
-
-    def get_target_video_path(self, dest, suffix='', container='webm'):
-        if suffix:
-            suffix = ' [%s]' % suffix
-        return self.__get_target_path(dest, suffix, container)
-
-    def get_target_subtitles_path(self, dest, lang):
-        return self.__get_target_path(dest, '', '%s.srt' % lang)
-
-    def get_target_scriptized_path(self, dest):
-        return self.__get_target_path(dest, '', 'sh')
 
     @classmethod
     def parse(cls, fname, fpath):

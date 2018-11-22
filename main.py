@@ -19,9 +19,12 @@ from recode.locked_state import LockedState
 
 def parse_fentry(fentry, suffix, forced_parser=None, forced_params=None):
     fname, fpath = fentry
-    if not fname.endswith(suffix):
-        raise ValueError('Bad name "%s" - not ending in suffix "%s"' % (fname, suffix))
-    fname = fname[:-len(suffix)]
+    if not suffix:
+        fname = os.path.splitext(fname)[0]
+    else:
+        if not fname.endswith(suffix):
+            raise ValueError('Bad name "%s" - not ending in suffix "%s"' % (fname, suffix))
+        fname = fname[:-len(suffix)]
 
     if forced_parser:
         return forced_parser.parse_forced(fname, fpath, forced_params)
@@ -97,8 +100,7 @@ def main():
             sys.exit('You must specify at least one source item and DEST_PATH when running without --resume')
         inp = get_files([os.path.abspath(f) for f in args.source])
         logging.info('Found %d items' % len(inp))
-        suffix = get_suffix(inp)
-        logging.info('Detected suffix as "%s"' % suffix)
+        suffix = ''
 
         entries = []
         entry_types = set()
@@ -109,6 +111,7 @@ def main():
             entries.append(entry)
             entry_types.add(type(entry))
 
+        need_reparse = False
         if not forced_parser and args.force_params:
             if len(entry_types) != 1:
                 sys.exit('Cannot force params when multiple media types found')
@@ -119,6 +122,14 @@ def main():
                 sys.exit('Incorrect parameters for "%s" media type: %s' % (forced_parser.FORCE_NAME, err.msg))
             # re-parse entries
             logging.debug('Re-parsing entries as forced params detected')
+            need_reparse = True
+        
+        if len(entry_types) == 1 and list(entry_types)[0].STRIP_SUFFIX:
+            suffix = get_suffix(inp)
+            logging.info('Detected suffix as "%s", re-parsing entries' % suffix)
+            need_reparse = True
+
+        if need_reparse:
             entries = []
             for fentry in inp:
                 entry = parse_fentry(fentry, suffix, forced_parser, forced_params)

@@ -12,21 +12,28 @@ class MediaEntry(object):
     LUFS_LEVEL = -14
     AUDIO_FREQ = 48000
     FORCE_NAME = None
+    CONTAINER = 'mkv'
+    STRIP_SUFFIX = False
 
     def __init__(self, src):
         self.src = src
         self.info = MediaInfo.parse(src)
         self.ignored_audio_tracks = set()
 
-    def get_target_video_path(self, dest, suffix='', container='mkv'):
+    def _get_target_path(self, dest, suffix, ext):
         raise NotImplementedError()
+
+    def get_target_video_path(self, dest, suffix='', container=None):
+        if suffix:
+            suffix = ' [%s]' % suffix
+        return self._get_target_path(dest, suffix, container or self.CONTAINER)
 
     def get_target_subtitles_path(self, dest, lang):
-        raise NotImplementedError()
+        return self._get_target_path(dest, '', '%s.srt' % lang)
 
     def get_target_scriptized_path(self, dest):
-        raise NotImplementedError()
-    
+        return self._get_target_path(dest, '', 'sh')
+
     @property
     def friendly_name(self):
         raise NotImplementedError()
