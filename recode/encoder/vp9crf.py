@@ -1,5 +1,6 @@
 from ..tasks import IParallelTask, Resource, ResourceKind
-from .base import EncoderTask, MediaEncoder
+from .base_tasks import EncoderTask
+from .base_encoder import MediaEncoder
 
 class VideoEncodeTask(EncoderTask):
     def __init__(self, encoder, is_first_pass):
