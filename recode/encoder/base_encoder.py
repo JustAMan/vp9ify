@@ -55,7 +55,7 @@ class BaseEncoder(object):
 
     def _make_audio_track_tasks(self, audio_info):
         audio_tasks = []
-        if audio_info.channels == 2:
+        if audio_info.channels <= 2:
             prepare_2ch_task = ExtractStereoAudioTask(self, audio_info.track_id)
         else:
             prepare_2ch_task = DownmixToStereoTask(self, audio_info.track_id)

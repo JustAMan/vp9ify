@@ -27,7 +27,7 @@ class ExtractStereoAudioTask(AudioBaseTask):
     def __init__(self, encoder, track_id):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only extracts stereo
-        assert self.info.get_audio_channels()[track_id] == 2
+        assert self.info.get_audio_channels()[track_id] <= 2
 
     @property
     def produced_files(self):
@@ -74,8 +74,8 @@ class NormalizeStereoTask(AudioBaseTask):
         options = self._get_codec_options()
         bitrate = ['-b:a', options.bitrate] if options.bitrate else []
         extra = ['-e=%s' % subprocess.list2cmdline(str(x) for x in options.extra)] if options.extra else []
-        return [self.encoder.FFMPEG_NORM, self.encoder.make_tempfile('audio-%d-2ch' % self.track_id),
-                '-c:a', options.name] + bitrate + extra + [
+        return [self.encoder.FFMPEG_NORM, self.produced_files[0],
+                '-c:a', options.name] + bitrate + extra + ['--dual-mono',
                 '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                 '-vn', '-o'] + self.produced_files
 
