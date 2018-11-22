@@ -1,4 +1,3 @@
-import re
 import tempfile
 import os
 import logging
@@ -8,7 +7,7 @@ import stat
 import errno
 import glob
 
-from ..helpers import open_with_dir, ensuredir
+from ..helpers import open_with_dir, ensuredir, chop_tail
 from ..tasks import IParallelTask, Resource, ResourceKind
 from ..flock import FLock
 
@@ -20,7 +19,6 @@ class TranscodingFailure(Exception):
 class EncoderTask(IParallelTask):
     BLOCKERS = ()
     static_limit = 1
-    _STRIP_TASK = re.compile(r'^(.*)Task$')
 
     def __init__(self, encoder):
         self.encoder = encoder
@@ -36,7 +34,7 @@ class EncoderTask(IParallelTask):
 
     @classmethod
     def _get_name(cls):
-        return cls._STRIP_TASK.sub(r'\1', cls.__name__)
+        return chop_tail(cls.__name__, 'Task')
 
     @property
     def name(self):

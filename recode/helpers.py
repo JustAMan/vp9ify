@@ -133,3 +133,8 @@ def confirm_yesno(prompt, default=True):
             return True
         if text in ('n', 'no'):
             return False
+
+def chop_tail(s, tail):
+    if s.endswith(tail):
+        return s[:-len(tail)]
+    return s

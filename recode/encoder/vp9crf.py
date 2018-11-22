@@ -1,6 +1,6 @@
 from ..tasks import IParallelTask, Resource, ResourceKind
 from .base_tasks import EncoderTask
-from .base_encoder import MediaEncoder
+from .base_encoder import BaseEncoder
 
 class VideoEncodeTask(EncoderTask):
     def __init__(self, encoder, is_first_pass):
@@ -41,7 +41,7 @@ class VideoEncode2PassTask(VideoEncodeTask):
     def __init__(self, encoder):
         VideoEncodeTask.__init__(self, encoder, False)
 
-class VP9CRFEncoder(MediaEncoder):
+class VP9CRFEncoder(BaseEncoder):
     '''
     VP9 reverse-engineered recommended CRF-from-height:
     >>> a

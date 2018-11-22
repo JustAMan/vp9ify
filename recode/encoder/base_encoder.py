@@ -2,13 +2,13 @@ import tempfile
 import os
 import logging
 
-from ..helpers import which, ensuredir
+from ..helpers import which, ensuredir, chop_tail
 from ..media.info import MediaInfo
 
 from .base_tasks import RemoveScriptTask, RemuxTask, ExtractSubtitlesTask, CleanupTempfiles
 from .audio import ExtractStereoAudioTask, DownmixToStereoTask, NormalizeStereoTask, AudioEncodeTask
 
-class MediaEncoder(object):
+class BaseEncoder(object):
     FFMPEG = which('ffmpeg', 'FFMPEG_PATH')
     FFMPEG_NORM = which('ffmpeg-normalize', 'FFMPEG_NORM_PATH')
     MKVEXTRACT = which('mkvextract')
@@ -23,12 +23,16 @@ class MediaEncoder(object):
         self.stdout = stdout or None
 
     def __eq__(self, other):
-        if not isinstance(other, MediaEncoder):
+        if not isinstance(other, BaseEncoder):
             return False
         return self.media == other.media
 
     def __ne__(self, other):
         return not (self == other)
+
+    @property
+    def tmp_prefix(self):
+        return chop_tail(self.__class__.__name__, 'Encoder').lower()
 
     def make_tempfile(self, suffix='', ext='mkv', glob_suffix=None):
         tmpdir = tempfile.gettempdir()
