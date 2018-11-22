@@ -58,7 +58,7 @@ class EncoderTask(IParallelTask):
     def _get_stdout(self):
         if self.stdout is not None:
             path, ext = os.path.splitext(self.stdout)
-            return '%s-%s-%s%s' % (path, self.name.lower(), self.media.short_name, ext)
+            return '%s-%s-%s%s' % (path, self.name.lower(), self.media.unique_name, ext)
         return None
 
     def _run_command(self, cmd):

@@ -31,7 +31,7 @@ class MediaEntry(object):
         raise NotImplementedError()
 
     @property
-    def short_name(self):
+    def unique_name(self):
         raise NotImplementedError()
 
     @property

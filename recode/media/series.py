@@ -1,5 +1,6 @@
 import re
 import os
+import hashlib
 
 from .base import MediaEntry
 
@@ -18,14 +19,15 @@ class SeriesEpisode(MediaEntry):
         self.season = season
         self.episode = episode
         self.name = name
+        self.prefix = ''.join('%02x' % ord(ch) for ch in hashlib.sha256(series).digest()[:2])
 
     @property
     def friendly_name(self):
         return 'S%02dE%02d - %s' % (self.season, self.episode, self.name)
 
     @property
-    def short_name(self):
-        return '%02dx%02d' % (self.season, self.episode)
+    def unique_name(self):
+        return '%s-%02dx%02d' % (self.prefix, self.season, self.episode)
 
     @property
     def comparing_key(self):

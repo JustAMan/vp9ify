@@ -39,7 +39,7 @@ class BaseEncoder(object):
     def make_tempfile(self, suffix='', ext='mkv', glob_suffix=None):
         tmpdir = tempfile.gettempdir()
         ensuredir(tmpdir)
-        path = os.path.join(tmpdir, '%s-%s.%s.%s' % (self._get_tmp_prefix(), self.media.friendly_name, suffix, ext))
+        path = os.path.join(tmpdir, '%s-%s.%s.%s' % (self._get_tmp_prefix(), self.media.unique_name, suffix, ext))
         if path not in self.tempfiles:
             self.tempfiles.append(path)
         if glob_suffix:
