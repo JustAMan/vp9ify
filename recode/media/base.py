@@ -13,11 +13,6 @@ class MediaEntry(object):
     # Value of -crf for VP9 *if* video would be 1080p (recalculated according to video size)
     TARGET_1080_QUALITY = 23
 
-    class UnknownFile(Exception):
-        pass
-    class UnhandledMediaType(Exception):
-        pass
-
     def __init__(self, src):
         self.src = src
         self.info = MediaInfo.parse(src)
@@ -42,6 +37,9 @@ class MediaEntry(object):
 
     @property
     def comparing_key(self):
+        raise NotImplementedError()
+
+    def make_encode_tasks(self, dest, logpath):
         raise NotImplementedError()
 
     def __eq__(self, other):

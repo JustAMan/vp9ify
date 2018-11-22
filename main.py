@@ -13,7 +13,7 @@ logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
-from recode.media import PARSERS, MediaEntry, MediaEncoder
+from recode.media.parsers import PARSERS, UnknownFile
 from recode.locked_state import LockedState
 
 def parse_fentry(fentry, suffix):
@@ -25,7 +25,7 @@ def parse_fentry(fentry, suffix):
     for parser in PARSERS:
         try:
             entry = parser.parse(fname, fpath)
-        except MediaEntry.UnknownFile:
+        except UnknownFile:
             continue
         else:
             return entry
@@ -93,6 +93,7 @@ def main():
             for entry in entries:
                 entry.interact()
 
+        new_tasks = [entry.make_encode_tasks(args.dest, logpath or None) for entry in entries]
         with state:
             try:
                 tasks = state.read()
@@ -101,9 +102,7 @@ def main():
                 logging.info('Resume file "%s" does not exist, starting from scratch' % resume_file)
             else:
                 logging.info('Resume file "%s" exists, appending' % resume_file)
-            
-            for entry in entries:
-                tasks.append(MediaEncoder(entry, args.dest, logpath or None).make_tasks())
+            tasks.extend(new_tasks)
             state.write(tasks)
 
     if args.scriptize:

@@ -3,6 +3,8 @@ import os
 
 from .base import MediaEntry
 
+from ..encoder.vp9crf import VP9CRFEncoder
+
 class SeriesEpisode(MediaEntry):
     TARGET_1080_QUALITY = 24
     AUDIO_QUALITY = 4
@@ -28,6 +30,9 @@ class SeriesEpisode(MediaEntry):
     @property
     def comparing_key(self):
         return (self.series, self.season, self.episode)
+
+    def make_encode_tasks(self, dest, logpath):
+        return VP9CRFEncoder(self, dest, logpath).make_tasks()
 
     def __get_target_path(self, dest, ext):
         return os.path.join(dest, self.series, 'S%02d' % self.season, '%s.%s' % (self.friendly_name, ext))
