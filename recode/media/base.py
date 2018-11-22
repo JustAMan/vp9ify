@@ -13,7 +13,7 @@ class MediaEntry(object):
         self.info = MediaInfo.parse(src)
         self.ignored_audio_tracks = set()
 
-    def get_target_video_path(self, dest):
+    def get_target_video_path(self, dest, suffix='', container='mkv'):
         raise NotImplementedError()
 
     def get_target_subtitles_path(self, dest, lang):

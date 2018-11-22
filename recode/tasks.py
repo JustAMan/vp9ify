@@ -19,6 +19,7 @@ Resource = collections.namedtuple('Resource', 'kind priority')
 
 class IParallelTask(object):
     resource = None
+    do_script = True
     def get_limit(self, candidate_tasks, running_tasks):
         raise NotImplementedError()
     def __call__(self):
@@ -147,7 +148,8 @@ class Executor:
             try:
                 if not self.scriptize:
                     task()
-                task.scriptize()
+                if task.do_script:
+                    task.scriptize()
             except:
                 logging.exception('Error in %s' % task)
             else:

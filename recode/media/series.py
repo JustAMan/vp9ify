@@ -32,17 +32,19 @@ class SeriesEpisode(MediaEntry):
     def make_encode_tasks(self, dest, logpath):
         return VP9CRFEncoder(self, dest, logpath).make_tasks()
 
-    def __get_target_path(self, dest, ext):
-        return os.path.join(dest, self.series, 'S%02d' % self.season, '%s.%s' % (self.friendly_name, ext))
+    def __get_target_path(self, dest, suffix, ext):
+        return os.path.join(dest, self.series, 'S%02d' % self.season, '%s%s.%s' % (self.friendly_name, suffix, ext))
 
-    def get_target_video_path(self, dest):
-        return self.__get_target_path(dest, 'webm')
+    def get_target_video_path(self, dest, suffix='', container='webm'):
+        if suffix:
+            suffix = ' [%s]' % suffix
+        return self.__get_target_path(dest, suffix, container)
 
     def get_target_subtitles_path(self, dest, lang):
-        return self.__get_target_path(dest, '%s.srt' % lang)
+        return self.__get_target_path(dest, '', '%s.srt' % lang)
 
     def get_target_scriptized_path(self, dest):
-        return self.__get_target_path(dest, 'sh')
+        return self.__get_target_path(dest, '', 'sh')
 
     @classmethod
     def parse(cls, fname, fpath):

@@ -15,6 +15,8 @@ class BaseEncoder(object):
 
     NormalizeStereo = NormalizeStereoTask
     AudioEncode = AudioEncodeTask
+    ExtractSubtitles = ExtractSubtitlesTask
+    Remux = RemuxTask
 
     def __init__(self, media, dest, stdout=None):
         self.media = media
@@ -71,6 +73,7 @@ class BaseEncoder(object):
     def make_tasks(self):
         video_tasks = self._make_video_tasks()
         audio_tasks = self._make_audio_tasks()
-        remux_task = RemuxTask(self, video_tasks, audio_tasks)
-        return [RemoveScriptTask(self)] + video_tasks + audio_tasks + [remux_task,
-                ExtractSubtitlesTask(self), CleanupTempfiles(self, remux_task)]
+        remux_task = self.Remux(self, video_tasks, audio_tasks)
+        extract_subs = [self.ExtractSubtitles(self)] if self.ExtractSubtitles else []
+        return [RemoveScriptTask(self)] + video_tasks + audio_tasks + [remux_task] + \
+                extract_subs + [CleanupTempfiles(self, remux_task)]
