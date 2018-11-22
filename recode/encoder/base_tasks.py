@@ -197,7 +197,7 @@ class ExtractSubtitlesTask(EncoderTask):
                 ensuredir(os.path.dirname(subpath))
                 cmd.append('%s:%s' % (sub.track_id, subpath))
             return cmd
-        return None
+        return []
 
 class CleanupTempfiles(EncoderTask):
     resource = Resource(kind=ResourceKind.IO, priority=2)
