@@ -27,6 +27,10 @@ class VideoEncodeTask(EncoderTask):
         all_transcodes = [t for t in batch_tasks if isinstance(t, VideoEncodeTask)]
         return all_transcodes[0] == self and EncoderTask.can_run(self, batch_tasks)
 
+    @property
+    def produced_files(self):
+        return [self.encoder.make_tempfile('vp9-audio=no')]
+
     def _make_command(self):
         crf = (self.encoder.CRF_PROP * self.info.get_video_diagonal() ** self.encoder.CRF_POW) * \
                 self.media.webm_options.target_1080_crf / self.encoder.CRF_VP9_1080P
@@ -37,7 +41,7 @@ class VideoEncodeTask(EncoderTask):
         return [self.encoder.FFMPEG, '-i', self.media.src, '-g', 240,
                '-movflags', '+faststart', '-map', '0:v', '-c:v', 'libvpx-vp9', '-an', '-crf', int(crf),
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
-               '-passlogfile', self.encoder.make_tempfile('ffmpeg2pass', 'log', '-*.log'), '-y', self.encoder.make_tempfile('vp9-audio=no')]
+               '-passlogfile', self.encoder.make_tempfile('ffmpeg2pass', 'log', '-*.log'), '-y'] + self.produced_files
 
 class Vp9CrfEncode1PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=1)

@@ -120,7 +120,7 @@ class EncoderTask(IParallelTask):
         return self.static_limit
 
     @property
-    def produced_file(self):
+    def produced_files(self):
         raise NotImplementedError()
 
 class RemoveScriptTask(EncoderTask):
