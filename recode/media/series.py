@@ -2,12 +2,13 @@ import re
 import os
 import hashlib
 
-from .base import MediaEntry, UnknownFile
+from .base import MediaEntry, UnknownFile, BadParameters
 
 from ..encoder.vp9crf import VP9CRFEncoder, WebmCrfOptions
 
 class SeriesEpisode(MediaEntry):
     webm_options = WebmCrfOptions(target_1080_crf=24, audio_quality=24, speed_first=5, speed_second=2)
+    FORCE_NAME = 'series'
 
     def __init__(self, src, series, season, episode, name):
         MediaEntry.__init__(self, src)
@@ -20,6 +21,10 @@ class SeriesEpisode(MediaEntry):
     @property
     def friendly_name(self):
         return 'S%02dE%02d - %s' % (self.season, self.episode, self.name)
+
+    @property
+    def full_name(self):
+        return '%s - S%02dE%02d - %s' % (self.series, self.season, self.episode, self.name)
 
     @property
     def unique_name(self):
@@ -54,3 +59,29 @@ class SeriesEpisode(MediaEntry):
         except (AttributeError, ValueError):
             raise UnknownFile()
         return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
+
+    @classmethod
+    def parse_forced(cls, fname, fpath, series_name):
+        try:
+            parsed = cls.parse(fname, fpath)
+        except UnknownFile:
+            try:
+                series, season, episode, name = re.match(r'(.*)(\d+)[^\d]+(\d+)(.*)$', fname).groups()
+                season, episode = int(season), int(episode)
+            except (AttributeError, ValueError):
+                raise UnknownFile()
+        else:
+            series, season, episode, name = parsed.series, parsed.season, parsed.episode, parsed.name
+        if series_name:
+            series = series_name
+        return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
+
+    @classmethod
+    def parse_parameters(cls, param_str):
+        try:
+            lval, rval = param_str.split('=', 1)
+        except ValueError:
+            raise BadParameters('expected name=SERIES NAME')
+        if lval.strip().lower() != 'name':
+            raise BadParameters('expected name=SERIES NAME')
+        return rval.strip()

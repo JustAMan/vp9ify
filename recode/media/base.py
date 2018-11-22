@@ -3,10 +3,15 @@ from ..helpers import input_numbers, confirm_yesno
 
 class UnknownFile(Exception):
     pass
+class BadParameters(Exception):
+    def __init__(self, msg):
+        Exception.__init__(self)
+        self.msg = msg
 
 class MediaEntry(object):
     LUFS_LEVEL = -14
     AUDIO_FREQ = 48000
+    FORCE_NAME = None
 
     def __init__(self, src):
         self.src = src
@@ -25,6 +30,10 @@ class MediaEntry(object):
     @property
     def friendly_name(self):
         raise NotImplementedError()
+
+    @property
+    def full_name(self):
+        return self.friendly_name
 
     @property
     def unique_name(self):
@@ -47,6 +56,14 @@ class MediaEntry(object):
 
     @classmethod
     def parse(cls, fname, fpath):
+        raise NotImplementedError()
+
+    @classmethod
+    def parse_forced(cls, fname, fpath, params):
+        raise NotImplementedError()
+
+    @classmethod
+    def parse_parameters(cls, param_str):
         raise NotImplementedError()
 
     def interact(self):
