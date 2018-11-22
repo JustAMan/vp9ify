@@ -3,6 +3,7 @@ import os
 import hashlib
 
 from .base import MediaEntry, UnknownFile, BadParameters
+from ..helpers import override_int_fields
 
 from ..encoder.vp9crf import VP9CRFEncoder, WebmCrfOptions
 
@@ -64,4 +65,9 @@ class SeriesEpisode(MediaEntry):
         else:
             series, season, episode, name = parsed.series, parsed.season, parsed.episode, parsed.name
         series = params.get('name', series)
-        return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
+        res = cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
+        try:
+            res.webm_options = override_int_fields(cls.webm_options, params)
+        except ValueError:
+            raise BadParameters('Got not an integer value trying to override int parameter')
+        return res

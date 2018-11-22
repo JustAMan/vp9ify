@@ -138,3 +138,15 @@ def chop_tail(s, tail):
     if s.endswith(tail):
         return s[:-len(tail)]
     return s
+
+def override_int_fields(named, params):
+    key_mapping = {field.lower(): field for field in named._fields}
+    result = named
+    for key, value in params.items():
+        try:
+            key_name = key_mapping[key]
+        except KeyError:
+            continue
+        if isinstance(getattr(result, key_name), int):
+            result = result._replace(**{key_name: int(value)})
+    return result

@@ -1,6 +1,4 @@
 from series import SeriesEpisode
+from movie import SingleMovie
 
-class UnhandledMediaType(Exception):
-    pass
-
-PARSERS = [SeriesEpisode]
+PARSERS = [SeriesEpisode, SingleMovie]
