@@ -52,7 +52,7 @@ class SeriesEpisode(MediaEntry):
         return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
 
     @classmethod
-    def parse_forced(cls, fname, fpath, series_name):
+    def parse_forced(cls, fname, fpath, params):
         try:
             parsed = cls.parse(fname, fpath)
         except UnknownFile:
@@ -63,16 +63,5 @@ class SeriesEpisode(MediaEntry):
                 raise UnknownFile()
         else:
             series, season, episode, name = parsed.series, parsed.season, parsed.episode, parsed.name
-        if series_name:
-            series = series_name
+        series = params.get('name', series)
         return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
-
-    @classmethod
-    def parse_parameters(cls, param_str):
-        try:
-            lval, rval = param_str.split('=', 1)
-        except ValueError:
-            raise BadParameters('expected name=SERIES NAME')
-        if lval.strip().lower() != 'name':
-            raise BadParameters('expected name=SERIES NAME')
-        return rval.strip()

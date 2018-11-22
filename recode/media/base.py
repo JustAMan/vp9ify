@@ -1,3 +1,5 @@
+import re
+
 from .info import MediaInfo
 from ..helpers import input_numbers, confirm_yesno
 
@@ -71,7 +73,15 @@ class MediaEntry(object):
 
     @classmethod
     def parse_parameters(cls, param_str):
-        raise NotImplementedError()
+        result = {}
+        while param_str:
+            try:
+                key, value, rest = re.match(r'[:\s]*(\w+)\s*=\s*(.*?)(?<!\\)(:.*|)$', param_str).groups()
+            except AttributeError:
+                raise BadParameters('Parameters should be in "foo=bar:baz=qux" form')
+            result[key.lower()] = value.replace('\\\\', '\\').strip()
+            param_str = rest
+        return result
 
     def interact(self):
         audio = sorted(self.info.get_audio_tracks(), key=lambda ainfo: ainfo.track_id)
