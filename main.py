@@ -50,7 +50,7 @@ def get_files(src_list):
 
 def main():
     parser = argparse.ArgumentParser(description='Transcode some videos for storing')
-    parser.add_argument('source', metavar='SRC_PATH_LIST', type=str, nargs='+', help='Source items to compress')
+    parser.add_argument('source', metavar='SRC_PATH_LIST', type=str, nargs='?', help='Source items to compress')
     parser.add_argument('--dest', metavar='DEST_PATH', type=str, default='', help='Path to target directory for this type of content (e.g. not including series name)')
     parser.add_argument('--resume', action='store_true', help='Resume unfinished recoding')
     parser.add_argument('--state', metavar='STATE_FILENAME', type=str, default='', help='Path to file where state to be stored')

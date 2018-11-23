@@ -25,7 +25,7 @@ class SingleMovie(MediaEntry):
 
     @property
     def unique_name(self):
-        return '%s-%s' % (self.name[:20], self.prefix)
+        return '%s-%s' % (self.name[:20].strip(), self.prefix)
 
     @property
     def comparing_key(self):
