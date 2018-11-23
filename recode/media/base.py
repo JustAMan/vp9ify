@@ -75,7 +75,7 @@ class MediaEntry(object):
         raise NotImplementedError()
 
     @classmethod
-    def parse_parameters(cls, param_str):
+    def parse_parameters(cls, param_str, targets_multiple_sources):
         result = {}
         while param_str:
             try:

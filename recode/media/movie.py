@@ -55,3 +55,10 @@ class SingleMovie(MediaEntry):
         res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.webm_options)]
         res.append(ParameterDescription(group='', key='name', kind='string', help='Movie name'))
         return res
+
+    @classmethod
+    def parse_parameters(cls, param_str, targets_multiple_sources):
+        params = MediaEntry.parse_parameters(param_str, targets_multiple_sources)
+        if targets_multiple_sources and 'name' in params:
+            raise BadParameters('Can not set "name" when targeting multiple movies')
+        return params

@@ -91,7 +91,7 @@ def main():
         forced_parser = [media_parser for media_parser in PARSERS if media_parser.FORCE_NAME == args.force_type][0]
         if args.force_params:
             try:
-                forced_params = forced_parser.parse_parameters(args.force_params)
+                forced_params = forced_parser.parse_parameters(args.force_params, targets_multiple_sources=len(args.source) > 1)
             except BadParameters as err:
                 sys.exit('Incorrect parameters for "%s" media type: %s' % (args.force_type, err.msg))
 
@@ -136,7 +136,7 @@ def main():
                 sys.exit('Cannot force params when multiple media types found')
             forced_parser = list(entry_types)[0]
             try:
-                forced_params = forced_parser.parse_parameters(args.force_params)
+                forced_params = forced_parser.parse_parameters(args.force_params, targets_multiple_sources=len(args.source) > 1)
             except BadParameters as err:
                 sys.exit('Incorrect parameters for "%s" media type: %s' % (forced_parser.FORCE_NAME, err.msg))
             # re-parse entries
