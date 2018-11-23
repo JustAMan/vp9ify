@@ -139,7 +139,7 @@ def chop_tail(s, tail):
         return s[:-len(tail)]
     return s
 
-def override_int_fields(named, params):
+def override_fields(named, params):
     key_mapping = {field.lower(): field for field in named._fields}
     result = named
     for key, value in params.items():
@@ -149,4 +149,18 @@ def override_int_fields(named, params):
             continue
         if isinstance(getattr(result, key_name), int):
             result = result._replace(**{key_name: int(value)})
+        elif isinstance(getattr(result, key_name), str):
+            result = result._replace(**{key_name: value})
+    return result
+
+def list_named_fields(named):
+    key_mapping = {field.lower(): field for field in named._fields}
+    result = []
+    for key, attr_name in sorted(key_mapping.items()):
+        if isinstance(getattr(named, attr_name), int):
+            result.append((key, 'integer'))
+        elif isinstance(getattr(named, attr_name), str):
+            result.append((key, 'string'))
+        else:
+            result.append((key, 'unsupported'))
     return result

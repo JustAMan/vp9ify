@@ -2,8 +2,8 @@ import re
 import os
 import hashlib
 
-from .base import MediaEntry, UnknownFile, BadParameters
-from ..helpers import override_int_fields
+from .base import MediaEntry, UnknownFile, BadParameters, ParameterDescription
+from ..helpers import override_fields, list_named_fields
 
 from ..encoder.vp9crf import VP9CRFEncoder, WebmCrfOptions
 
@@ -67,7 +67,13 @@ class SeriesEpisode(MediaEntry):
         series = params.get('name', series)
         res = cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
         try:
-            res.webm_options = override_int_fields(cls.webm_options, params)
+            res.webm_options = override_fields(cls.webm_options, params)
         except ValueError:
             raise BadParameters('Got not an integer value trying to override int parameter')
+        return res
+
+    @classmethod
+    def describe_parameters(cls):
+        res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.webm_options)]
+        res.append(ParameterDescription(group='', key='name', kind='string', help='Series name'))
         return res

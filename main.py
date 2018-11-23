@@ -7,6 +7,7 @@ try:
 except ImportError:
     import pickle
 import logging
+import collections
 
 LOGGING_FORMAT = '%(asctime)s|%(levelname)s|%(message)s'
 logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
@@ -61,7 +62,25 @@ def main():
     parser.add_argument('--interactive', '-i', action='store_true', help='Be interactive: ask some questions before running')
     parser.add_argument('--force-type', choices=[media_parser.FORCE_NAME for media_parser in PARSERS], help='Force media type')
     parser.add_argument('--force-params', type=str, default='', help='Additional parameters for forced media type')
+    parser.add_argument('--list-params', action='store_true', help='Show parameters accepted by each media type')
     args = parser.parse_args()
+
+    if args.list_params:
+        print 'Accepted parameters to be passed via --force-params:'
+        for media_parser in PARSERS:
+            print '[--force-type = %s]' % media_parser.FORCE_NAME
+            params = media_parser.describe_parameters()
+            maxkeylen = max(len(p.key) for p in params)
+            maxkindlen = max(len(p.kind) for p in params)
+
+            grouped = collections.defaultdict(list)
+            for param in params:
+                grouped[param.group].append(param)
+            for group, params in sorted(grouped.items()):
+                print 'Group "%s":' % (group or 'general')
+                for param in sorted(params, key=lambda p: p.key):
+                    print '\t%s [%s]%s' % (param.key.ljust(maxkeylen), param.kind.center(maxkindlen), ' - %s' % param.help if param.help else '')
+        return
 
     if args.interactive and args.resume:
         parser.print_help()

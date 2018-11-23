@@ -1,7 +1,10 @@
 import re
+import collections
 
 from .info import MediaInfo
 from ..helpers import input_numbers, confirm_yesno
+
+ParameterDescription = collections.namedtuple('ParameterDescription', 'group key kind help')
 
 class UnknownFile(Exception):
     pass
@@ -82,6 +85,10 @@ class MediaEntry(object):
             result[key.lower()] = value.replace('\\\\', '\\').strip()
             param_str = rest
         return result
+
+    @classmethod
+    def describe_parameters(cls):
+        raise NotImplementedError()
 
     def interact(self):
         audio = sorted(self.info.get_audio_tracks(), key=lambda ainfo: ainfo.track_id)

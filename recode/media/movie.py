@@ -1,8 +1,8 @@
 import hashlib
 import os
 
-from .base import MediaEntry, UnknownFile, BadParameters
-from ..helpers import override_int_fields
+from .base import MediaEntry, UnknownFile, BadParameters, ParameterDescription
+from ..helpers import override_fields, list_named_fields
 from ..encoder.vp9crf import WebmCrfOptions, VP9CRFEncoder
 
 class SingleMovie(MediaEntry):
@@ -45,8 +45,13 @@ class SingleMovie(MediaEntry):
     def parse_forced(cls, fname, fpath, params):
         res = cls(fpath, params.get('name', fname))
         try:
-            res.webm_options = override_int_fields(cls.webm_options, params)
+            res.webm_options = override_fields(cls.webm_options, params)
         except ValueError:
             raise BadParameters('Got not an integer value trying to override int parameter')
         return res
 
+    @classmethod
+    def describe_parameters(cls):
+        res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.webm_options)]
+        res.append(ParameterDescription(group='', key='name', kind='string', help='Movie name'))
+        return res
