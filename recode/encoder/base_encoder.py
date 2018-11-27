@@ -54,29 +54,32 @@ class BaseEncoder(object):
         raise NotImplementedError()
 
     def _make_audio_track_tasks(self, audio_info):
-        audio_tasks = []
+        intermediate, output = [], []
         if audio_info.channels <= 2:
             prepare_2ch_task = ExtractStereoAudioTask(self, audio_info.track_id)
         else:
             prepare_2ch_task = DownmixToStereoTask(self, audio_info.track_id)
             if self.AudioEncode:
-                audio_tasks.append(self.AudioEncode(self, audio_info.track_id))
-        audio_tasks.extend([prepare_2ch_task, self.NormalizeStereo(self, audio_info.track_id, prepare_2ch_task)])
-        return audio_tasks
+                output.append(self.AudioEncode(self, audio_info.track_id))
+        output.append(self.NormalizeStereo(self, audio_info.track_id, prepare_2ch_task))
+        intermediate.append(prepare_2ch_task)
+        return intermediate, output
 
     def _make_audio_tasks(self):
-        audio_tasks = []
+        intermediate, output = [], []
         for audio_info in self.info.get_audio_tracks():
             if audio_info.track_id in self.media.ignored_audio_tracks:
                 logging.info('Skipping audio track %d in "%s"' % (audio_info.track_id, self.media.friendly_name))
                 continue
-            audio_tasks.extend(self._make_audio_track_tasks(audio_info))
-        return audio_tasks
+            track_intermediate, track_output = self._make_audio_track_tasks(audio_info)
+            intermediate.extend(track_intermediate)
+            output.extend(track_output)
+        return intermediate, output
 
     def make_tasks(self):
         video_tasks = self._make_video_tasks()
-        audio_tasks = self._make_audio_tasks()
-        remux_task = self.Remux(self, video_tasks, audio_tasks)
+        audio_tasks_intermediate, audio_tasks_output = self._make_audio_tasks()
+        remux_task = self.Remux(self, video_tasks, audio_tasks_output)
         extract_subs = [self.ExtractSubtitles(self)] if self.ExtractSubtitles else []
-        return [RemoveScriptTask(self)] + video_tasks + audio_tasks + [remux_task] + \
-                extract_subs + [CleanupTempfiles(self, remux_task)]
+        return [RemoveScriptTask(self)] + video_tasks + audio_tasks_intermediate + \
+                audio_tasks_output + [remux_task] + extract_subs + [CleanupTempfiles(self, remux_task)]
