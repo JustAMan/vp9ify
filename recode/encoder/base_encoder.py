@@ -59,9 +59,9 @@ class BaseEncoder(object):
             prepare_2ch_task = ExtractStereoAudioTask(self, audio_info.track_id)
         else:
             prepare_2ch_task = DownmixToStereoTask(self, audio_info.track_id)
-            if self.AudioEncode:
-                output.append(self.AudioEncode(self, audio_info.track_id))
         output.append(self.NormalizeStereo(self, audio_info.track_id, prepare_2ch_task))
+        if audio_info.channels > 2 and self.AudioEncode:
+            output.append(self.AudioEncode(self, audio_info.track_id))
         intermediate.append(prepare_2ch_task)
         return intermediate, output
 
