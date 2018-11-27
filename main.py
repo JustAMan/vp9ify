@@ -160,7 +160,7 @@ def main():
             for entry in entries:
                 entry.interact()
 
-        new_tasks = [entry.make_encode_tasks(args.dest, logpath or None) for entry in entries]
+        new_tasks = [entry.make_encode_tasks(os.path.abspath(args.dest), logpath or None) for entry in entries]
         with state:
             try:
                 tasks = state.read()
