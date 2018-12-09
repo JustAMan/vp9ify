@@ -116,7 +116,7 @@ class Executor:
         if self.state_updated + self.UPDATE_DELAY > time.time():
             # do not update too frequently
             return
-        with self.state, self.lock:
+        with self.lock, self.state:
             self.state_updated = time.time()
             tasklists = self.state.read()
             logging.debug('Refreshing executor state, read %d batches' % len(tasklists))
