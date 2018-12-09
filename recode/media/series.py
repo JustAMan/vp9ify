@@ -46,11 +46,11 @@ class SeriesEpisode(MediaEntry):
     @classmethod
     def parse(cls, fname, fpath):
         try:
-            series, season, episode, name = re.match(r'(.*)\WS(\d+)E(\d+)(?:E\d+)?\W(.*)$', fname).groups()
+            series, season, episode, name = re.match(r'(.*)\WS(\d+)E(\d+)(?:E\d+)?\W(.*)$', fname, re.IGNORECASE).groups()
             season, episode = int(season), int(episode)
         except (AttributeError, ValueError):
             raise UnknownFile()
-        return cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
+        return cls(fpath, series, season, episode, name)
 
     @classmethod
     def parse_forced(cls, fname, fpath, params):
@@ -65,7 +65,7 @@ class SeriesEpisode(MediaEntry):
         else:
             series, season, episode, name = parsed.series, parsed.season, parsed.episode, parsed.name
         series = params.get('name', series)
-        res = cls(fpath, series, season, episode, name.decode('utf8').encode('ascii', 'backslashreplace'))
+        res = cls(fpath, series, season, episode, name)
         try:
             res.webm_options = override_fields(cls.webm_options, params)
         except ValueError:
