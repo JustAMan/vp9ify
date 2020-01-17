@@ -1,5 +1,6 @@
 import types
-import copy_reg
+import copyreg
+from functools import reduce
 import sys
 import os
 import errno
@@ -24,7 +25,7 @@ def _pickle_method(method):
             func_name = '_' + cls_name + func_name
     return _unpickle_method, (func_name, func_self, cls)
 
-copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+copyreg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 
 def _get_numthreads():
     # not using multiprocessing.cpu_count() as it does not account well for LXC containers constrained by CPU cores
@@ -101,7 +102,7 @@ def input_numbers(prompt, minval, maxval, accept_empty=True):
     else:
         template = '%s (from %d to %d, comma separated, hyphen denotes range): '
     while True:
-        text = raw_input(template % (prompt, minval, maxval))
+        text = input(template % (prompt, minval, maxval))
         if not text.strip() and accept_empty:
             return list(range(minval, maxval + 1))
         result = []
@@ -113,20 +114,20 @@ def input_numbers(prompt, minval, maxval, accept_empty=True):
                     left, right = [int(x.strip()) for x in piece.split('-')]
                     result.extend(range(left, right + 1))
             if min(result) < minval:
-                print 'Minimum should be at least %d' % minval
+                print('Minimum should be at least %d' % minval)
                 continue
             elif max(result) > maxval:
-                print 'Maximum should be at least %d' % minval
+                print('Maximum should be at least %d' % minval)
                 continue
         except ValueError:
-            print 'Cannot parse numbers, try again'
+            print('Cannot parse numbers, try again')
             continue
         return result
 
 def confirm_yesno(prompt, default=True):
     prompt = '%s [%s]: ' % (prompt, 'Y/n' if default else 'y/N')
     while True:
-        text = raw_input(prompt).strip().lower()
+        text = input(prompt).strip().lower()
         if not text:
             return default
         if text in ('y', 'yes'):

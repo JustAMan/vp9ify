@@ -1,1 +1,1 @@
-from base import MediaEntry
+from .base import MediaEntry

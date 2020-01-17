@@ -4,7 +4,7 @@ try:
 except ImportError:
     import pickle
 
-import flock
+from . import flock
 
 class LockedState(object):
     def __init__(self, state_path):

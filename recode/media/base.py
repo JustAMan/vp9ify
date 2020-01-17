@@ -93,14 +93,14 @@ class MediaEntry(object):
     def interact(self):
         audio = sorted(self.info.get_audio_tracks(), key=lambda ainfo: ainfo.track_id)
         if audio:
-            print 'Audio tracks available in "%s":' % self.friendly_name
+            print('Audio tracks available in "%s":' % self.friendly_name)
             for idx, ainfo in enumerate(audio):
-                print '  % 2d. [%s] %s (%d channels)' % (idx + 1, ainfo.language, ainfo.name, ainfo.channels)
+                print('  % 2d. [%s] %s (%d channels)' % (idx + 1, ainfo.language, ainfo.name, ainfo.channels))
             while True:
                 to_keep = input_numbers('Input track numbers to keep', 1, len(audio))
-                print 'Tracks to keep'
+                print('Tracks to keep')
                 for idx in to_keep:
-                    print '  [%s] %s (%d channels)' % (audio[idx - 1].language, audio[idx - 1].name, audio[idx - 1].channels)
+                    print('  [%s] %s (%d channels)' % (audio[idx - 1].language, audio[idx - 1].name, audio[idx - 1].channels))
                 if confirm_yesno('Are tracks selected correctly?'):
                     break
         keep_ids = set(audio[idx - 1].track_id for idx in to_keep)

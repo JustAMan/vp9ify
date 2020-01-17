@@ -17,7 +17,7 @@ if sys.platform == 'win32':
         def __exit__(self, *a, **kw):
             pass
 else:
-    import fcntl
+    import fcntl #pylint: disable=import-error
     class FLock:
         def __init__(self, path):
             self.path = os.path.abspath(path)

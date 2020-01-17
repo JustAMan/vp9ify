@@ -66,9 +66,9 @@ def main():
     args = parser.parse_args()
 
     if args.list_params:
-        print 'Accepted parameters to be passed via --force-params:'
+        print('Accepted parameters to be passed via --force-params:')
         for media_parser in PARSERS:
-            print '[--force-type = %s]' % media_parser.FORCE_NAME
+            print('[--force-type = %s]' % media_parser.FORCE_NAME)
             params = media_parser.describe_parameters()
             maxkeylen = max(len(p.key) for p in params)
             maxkindlen = max(len(p.kind) for p in params)
@@ -77,9 +77,9 @@ def main():
             for param in params:
                 grouped[param.group].append(param)
             for group, params in sorted(grouped.items()):
-                print 'Group "%s":' % (group or 'general')
+                print('Group "%s":' % (group or 'general'))
                 for param in sorted(params, key=lambda p: p.key):
-                    print '\t%s [%s]%s' % (param.key.ljust(maxkeylen), param.kind.center(maxkindlen), ' - %s' % param.help if param.help else '')
+                    print('\t%s [%s]%s' % (param.key.ljust(maxkeylen), param.kind.center(maxkindlen), ' - %s' % param.help if param.help else ''))
         return
 
     if args.interactive and args.resume:
