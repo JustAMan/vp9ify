@@ -19,7 +19,7 @@ class SeriesEpisode(MediaEntry):
         self.season = season
         self.episode = episode
         self.name = name
-        self.prefix = ''.join('%02x' % ord(ch) for ch in hashlib.sha256(series).digest()[:2])
+        self.prefix = ''.join('%02x' % ch for ch in hashlib.sha256(series.encode('utf-8')).digest()[:2])
 
     @property
     def friendly_name(self):

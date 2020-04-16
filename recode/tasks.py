@@ -82,7 +82,7 @@ class Executor:
                     # check if taking one more task of given priority fits
                     potential = copy.deepcopy(resource_uses[resource_kind])
                     potential[resource_priority] += 1
-                    for priority in set(potential.keys() + slots.keys()):
+                    for priority in (set(potential.keys()) | set(slots.keys())):
                         total = 0
                         for potential_prio, users in potential.items():
                             if potential_prio <= priority:

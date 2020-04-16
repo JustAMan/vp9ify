@@ -13,7 +13,7 @@ class SingleMovie(MediaEntry):
     def __init__(self, src, name):
         MediaEntry.__init__(self, src)
         self.name = name
-        self.prefix = ''.join('%02x' % ord(ch) for ch in hashlib.sha256(name).digest()[:2])
+        self.prefix = ''.join('%02x' % ch for ch in hashlib.sha256(name.encode('utf-8')).digest()[:2])
 
     @property
     def friendly_name(self):
