@@ -41,7 +41,7 @@ def parse_fentry(fentry: typing.Tuple[str, str], suffix: str, forced_parser: Med
                 upcasters = UPCAST[entry.FORCE_NAME][target_quality]
             except KeyError:
                 return [entry]
-            return [p(fname, fpath) for p in  upcasters]
+            return [p.parse(fname, fpath) for p in upcasters]
     raise ValueError('Cannot parse "%s" - no handlers found' % fname)
 
 def get_files(src_list):
