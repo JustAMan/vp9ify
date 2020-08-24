@@ -190,7 +190,7 @@ def main():
         Executor(state, scriptize=True).execute()
         logging.info('Scriptizing stopped')
     elif not args.nostart:
-        if state_existed and not confirm_yesno('State file already exists, are you sure encoding is not running in the background', False):
+        if not args.resume and state_existed and not confirm_yesno('State file already exists, are you sure encoding is not running in the background', False):
             logging.info('State file already exists, probably recoding is running in the background. Appended new tasks, now exiting')
             return
         logging.info('Recoding started')
