@@ -4,6 +4,7 @@ from functools import reduce
 import sys
 import os
 import errno
+import typing
 
 def _unpickle_method(func_name, func_self, cls):
     for base in cls.mro():
@@ -27,7 +28,7 @@ def _pickle_method(method):
 
 copyreg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 
-def _get_numthreads():
+def _get_numthreads() -> int:
     # not using multiprocessing.cpu_count() as it does not account well for LXC containers constrained by CPU cores
     try:
         return open('/proc/cpuinfo').read().count('vendor_id')
@@ -36,12 +37,12 @@ def _get_numthreads():
 NUM_THREADS = _get_numthreads()
 
 if sys.platform == 'win32':
-    def which(prog, env_name=None, optional=False):
+    def which(prog, env_name=None, optional=False) -> str:
         ''' Stub for testing reasons '''
         return None if optional else prog
 else:
     _which_cache = {}
-    def which(prog, env_name=None, optional=False):
+    def which(prog: str, env_name: str=None, optional: bool=False) -> str:
         try:
             result = _which_cache[prog]
         except KeyError:
@@ -78,25 +79,25 @@ def _stop(cond):
         return True
     raise StopIteration
 
-def common_tail(sa, sb):
+def common_tail(sa: typing.Sequence[str], sb: typing.Sequence[str]) -> str:
     return ''.join(reversed(tuple(a for a,b in zip(reversed(sa), reversed(sb)) if _stop(a==b))))
 
 def get_suffix(lst):
     suffix = reduce(common_tail, (fname for (fname, _) in lst), lst[0][0])
     return suffix
 
-def ensuredir(path):
+def ensuredir(path: str):
     try:
         os.makedirs(path)
     except OSError as err:
         if err.errno != errno.EEXIST:
             raise
 
-def open_with_dir(path, *arg, **kw):
+def open_with_dir(path: str, *arg, **kw):
     ensuredir(os.path.dirname(path))
     return open(path, *arg, **kw)
 
-def input_numbers(prompt, minval, maxval, accept_empty=True):
+def input_numbers(prompt: str, minval: int, maxval: int, accept_empty :bool=True) -> typing.List[int]:
     if accept_empty:
         template = '%s (from %d to %d, comma separated, hyphen denotes range, empty means "all"): '
     else:
@@ -124,7 +125,7 @@ def input_numbers(prompt, minval, maxval, accept_empty=True):
             continue
         return result
 
-def confirm_yesno(prompt, default=True):
+def confirm_yesno(prompt: str, default: bool=True) -> bool:
     prompt = '%s [%s]: ' % (prompt, 'Y/n' if default else 'y/N')
     while True:
         text = input(prompt).strip().lower()
@@ -135,12 +136,12 @@ def confirm_yesno(prompt, default=True):
         if text in ('n', 'no'):
             return False
 
-def chop_tail(s, tail):
+def chop_tail(s: str, tail: str) -> str:
     if s.endswith(tail):
         return s[:-len(tail)]
     return s
 
-def override_fields(named, params):
+def override_fields(named: typing.NamedTuple, params: dict) -> typing.NamedTuple:
     key_mapping = {field.lower(): field for field in named._fields}
     result = named
     for key, value in params.items():
@@ -154,7 +155,7 @@ def override_fields(named, params):
             result = result._replace(**{key_name: value})
     return result
 
-def list_named_fields(named):
+def list_named_fields(named: typing.NamedTuple) -> typing.List[typing.Tuple[str, str]]:
     key_mapping = {field.lower(): field for field in named._fields}
     result = []
     for key, attr_name in sorted(key_mapping.items()):

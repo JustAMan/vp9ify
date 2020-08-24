@@ -8,6 +8,7 @@ try:
 except ImportError:
     import pickle
 import logging
+import typing
 
 from .locked_state import LockedState
 
@@ -20,13 +21,13 @@ Resource = collections.namedtuple('Resource', 'kind priority')
 class IParallelTask(object):
     resource = None
     do_script = True
-    def get_limit(self, candidate_tasks, running_tasks):
+    def get_limit(self, candidate_tasks, running_tasks) -> int:
         raise NotImplementedError()
     def __call__(self):
         raise NotImplementedError()
     def __str__(self):
         raise NotImplementedError()
-    def can_run(self, batch_tasks):
+    def can_run(self, batch_tasks) -> bool:
         raise NotImplementedError()
     def scriptize(self):
         raise NotImplementedError()

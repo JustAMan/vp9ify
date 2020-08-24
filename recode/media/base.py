@@ -1,5 +1,6 @@
 import re
 import collections
+import typing
 
 from .info import MediaInfo
 from ..helpers import input_numbers, confirm_yesno
@@ -20,7 +21,7 @@ class MediaEntry(object):
     CONTAINER = 'mkv'
     STRIP_SUFFIX = False
 
-    def __init__(self, src):
+    def __init__(self, src: str):
         self.src = src
         self.info = MediaInfo.parse(src)
         self.ignored_audio_tracks = set()
@@ -28,34 +29,34 @@ class MediaEntry(object):
     def _get_target_path(self, dest, suffix, ext):
         raise NotImplementedError()
 
-    def get_target_video_path(self, dest, suffix='', container=None):
+    def get_target_video_path(self, dest: str, suffix :str='', container: str=None) -> str:
         if suffix:
             suffix = ' [%s]' % suffix
         return self._get_target_path(dest, suffix, container or self.CONTAINER)
 
-    def get_target_subtitles_path(self, dest, lang):
+    def get_target_subtitles_path(self, dest: str, lang: str) -> str:
         return self._get_target_path(dest, '', '%s.srt' % lang)
 
-    def get_target_scriptized_path(self, dest):
+    def get_target_scriptized_path(self, dest: str) -> str:
         return self._get_target_path(dest, '', 'sh')
 
     @property
-    def friendly_name(self):
+    def friendly_name(self) -> str:
         raise NotImplementedError()
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return self.friendly_name
 
     @property
-    def unique_name(self):
+    def unique_name(self) -> str:
         raise NotImplementedError()
 
     @property
     def comparing_key(self):
         raise NotImplementedError()
 
-    def make_encode_tasks(self, dest, logpath):
+    def make_encode_tasks(self, dest: str, logpath: str):
         raise NotImplementedError()
 
     def __eq__(self, other):
@@ -67,15 +68,15 @@ class MediaEntry(object):
         return not (self == other)
 
     @classmethod
-    def parse(cls, fname, fpath):
+    def parse(cls, fname: str, fpath: str):
         raise NotImplementedError()
 
     @classmethod
-    def parse_forced(cls, fname, fpath, params):
+    def parse_forced(cls, fname: str, fpath: str, params: dict):
         raise NotImplementedError()
 
     @classmethod
-    def parse_parameters(cls, param_str, targets_multiple_sources):
+    def parse_parameters(cls, param_str: str, targets_multiple_sources: bool) -> dict:
         result = {}
         while param_str:
             try:
@@ -87,7 +88,7 @@ class MediaEntry(object):
         return result
 
     @classmethod
-    def describe_parameters(cls):
+    def describe_parameters(cls) -> typing.List[ParameterDescription]:
         raise NotImplementedError()
 
     def interact(self):

@@ -1,4 +1,5 @@
 import collections
+import typing
 
 WebmCrfOptions = collections.namedtuple('WebmCrfOptions', 'target_1080_crf audio_quality speed_first speed_second')
 
@@ -16,7 +17,7 @@ class VorbisEncode(AudioEncodeTask):
         return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.webm_options.audio_quality))
 
 class VideoEncodeTask(EncoderTask):
-    def __init__(self, encoder, is_first_pass):
+    def __init__(self, encoder: BaseEncoder, is_first_pass: bool):
         EncoderTask.__init__(self, encoder)
         self.is_first_pass = is_first_pass
 
@@ -46,7 +47,7 @@ class VideoEncodeTask(EncoderTask):
 class Vp9CrfEncode1PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=1)
     static_limit = 5
-    def __init__(self, encoder):
+    def __init__(self, encoder: BaseEncoder):
         VideoEncodeTask.__init__(self, encoder, True)
     def get_limit(self, candidate_tasks, running_tasks):
         pass2count = sum(1 for t in candidate_tasks if isinstance(t, Vp9CrfEncode2PassTask))
@@ -56,7 +57,7 @@ class Vp9CrfEncode1PassTask(VideoEncodeTask):
 class Vp9CrfEncode2PassTask(VideoEncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=0)
     static_limit = 4
-    def __init__(self, encoder):
+    def __init__(self, encoder: BaseEncoder):
         VideoEncodeTask.__init__(self, encoder, False)
 
 class VP9CRFEncoder(BaseEncoder):

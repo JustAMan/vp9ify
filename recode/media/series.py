@@ -1,6 +1,7 @@
 import re
 import os
 import hashlib
+import typing
 
 from .base import MediaEntry, UnknownFile, BadParameters, ParameterDescription
 from ..helpers import override_fields, list_named_fields
@@ -13,7 +14,7 @@ class SeriesEpisode(MediaEntry):
     CONTAINER = 'webm'
     STRIP_SUFFIX = True
 
-    def __init__(self, src, series, season, episode, name):
+    def __init__(self, src: str, series: str, season: int, episode: int, name: str):
         MediaEntry.__init__(self, src)
         self.series = series
         self.season = season
@@ -44,7 +45,7 @@ class SeriesEpisode(MediaEntry):
         return os.path.join(dest, self.series, 'S%02d' % self.season, '%s%s.%s' % (self.friendly_name, suffix, ext))
 
     @classmethod
-    def parse(cls, fname, fpath):
+    def parse(cls, fname: str, fpath: str) -> MediaEntry:
         try:
             series, season, episode, name = re.match(r'(.*)\WS(\d+)E(\d+)(?:E\d+)?\W(.*)$', fname, re.IGNORECASE).groups()
             season, episode = int(season), int(episode)
@@ -53,7 +54,7 @@ class SeriesEpisode(MediaEntry):
         return cls(fpath, series, season, episode, name)
 
     @classmethod
-    def parse_forced(cls, fname, fpath, params):
+    def parse_forced(cls, fname: str, fpath: str, params: dict) -> MediaEntry:
         try:
             parsed = cls.parse(fname, fpath)
         except UnknownFile:

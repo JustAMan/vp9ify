@@ -19,11 +19,11 @@ class LockedState(object):
     def __exit__(self, *a, **kw):
         return self.lock.__exit__(*a, **kw)
 
-    def read(self):
+    def read(self) -> list:
         with open(self.path, 'rb') as inp:
             return pickle.loads(inp.read())
 
-    def write(self, tasklists):
+    def write(self, tasklists: list):
         with open(self.path, 'wb') as out:
             out.write(pickle.dumps(tasklists))
 

@@ -5,9 +5,10 @@ AudioCodecOptions = collections.namedtuple('AudioCodecOptions', 'name bitrate ex
 
 from ..tasks import IParallelTask, Resource, ResourceKind
 from .base_tasks import EncoderTask
+from .abstract_encoder import AbstractEncoder
 
 class AudioBaseTask(EncoderTask):
-    def __init__(self, encoder, track_id):
+    def __init__(self, encoder: AbstractEncoder, track_id: int):
         EncoderTask.__init__(self, encoder)
         self.track_id = track_id
 
@@ -24,7 +25,7 @@ class AudioBaseTask(EncoderTask):
 class ExtractStereoAudioTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.IO, priority=1)
     static_limit = 2
-    def __init__(self, encoder, track_id):
+    def __init__(self, encoder: AbstractEncoder, track_id: int):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only extracts stereo
         assert self.info.get_audio_channels()[track_id] <= 2
@@ -44,7 +45,7 @@ class DownmixToStereoTask(AudioBaseTask):
     having each instance of original audio as normalized stereo helps when watching on simple, non-5.1-enabled hardware) '''
     resource = Resource(kind=ResourceKind.CPU, priority=2)
     static_limit = 6
-    def __init__(self, encoder, track_id, stdout=None):
+    def __init__(self, encoder: AbstractEncoder, track_id: int):
         AudioBaseTask.__init__(self, encoder, track_id)
         # this only works with non-stereo
         assert self.info.get_audio_channels()[track_id] > 2
@@ -62,7 +63,7 @@ class DownmixToStereoTask(AudioBaseTask):
 class NormalizeStereoTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
     static_limit = 6
-    def __init__(self, encoder, track_id, parent_task):
+    def __init__(self, encoder: AbstractEncoder, track_id: int, parent_task: AudioBaseTask):
         AudioBaseTask.__init__(self, encoder, track_id)
         self.blockers.append(parent_task.name)
 
@@ -82,7 +83,7 @@ class NormalizeStereoTask(AudioBaseTask):
 class AudioEncodeTask(AudioBaseTask):
     resource = Resource(kind=ResourceKind.CPU, priority=2)
     static_limit = 6
-    def __init__(self, encoder, track_id):
+    def __init__(self, encoder: AbstractEncoder, track_id: int):
         AudioBaseTask.__init__(self, encoder, track_id)
         # encoding without normalization is applied to non-stereo only
         assert self.info.get_audio_channels()[track_id] != 2

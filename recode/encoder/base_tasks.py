@@ -6,10 +6,13 @@ import sys
 import stat
 import errno
 import glob
+import typing
 
 from ..helpers import open_with_dir, ensuredir, chop_tail
 from ..tasks import IParallelTask, Resource, ResourceKind
 from ..flock import FLock
+
+from .abstract_encoder import AbstractEncoder
 
 class TranscodingFailure(Exception):
     def __init__(self, err):
@@ -20,7 +23,7 @@ class EncoderTask(IParallelTask):
     BLOCKERS = ()
     static_limit = 1
 
-    def __init__(self, encoder):
+    def __init__(self, encoder: AbstractEncoder):
         self.encoder = encoder
         self.media = encoder.media
         self.info = encoder.info
@@ -33,11 +36,11 @@ class EncoderTask(IParallelTask):
         return [self.encoder, self.media, self.stdout, self.blockers, self.dest]
 
     @classmethod
-    def _get_name(cls):
+    def _get_name(cls) -> str:
         return chop_tail(cls.__name__, 'Task')
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._get_name()
 
     def __eq__(self, other):
@@ -51,17 +54,17 @@ class EncoderTask(IParallelTask):
     def __str__(self):
         return '%s (%s)' % (self.name, self.media.friendly_name)
 
-    def can_run(self, batch_tasks):
+    def can_run(self, batch_tasks: typing.Sequence) -> bool:
         blockers = [t for t in batch_tasks if isinstance(t, EncoderTask) and t.name in self.blockers]
         return not blockers
 
-    def _get_stdout(self):
+    def _get_stdout(self) -> str:
         if self.stdout is not None:
             path, ext = os.path.splitext(self.stdout)
             return '%s-%s-%s%s' % (path, self.name.lower(), self.media.unique_name, ext)
         return None
 
-    def _run_command(self, cmd):
+    def _run_command(self, cmd: list):
         cmd = [str(x) for x in cmd]
         stdout = self._get_stdout()
 
@@ -89,7 +92,7 @@ class EncoderTask(IParallelTask):
         if cmd:
             self._run_command(cmd)
 
-    def _gen_command(self):
+    def _gen_command(self) -> typing.List[str]:
         return [str(x) for x in self._make_command()]
 
     def scriptize(self):
@@ -116,11 +119,11 @@ class EncoderTask(IParallelTask):
             stats = os.stat(script)
             os.chmod(script, stats.st_mode | stat.S_IXUSR)
 
-    def get_limit(self, candidate_tasks, running_tasks):
+    def get_limit(self, candidate_tasks: typing.Sequence, running_tasks: typing.Sequence) -> int:
         return self.static_limit
 
     @property
-    def produced_files(self):
+    def produced_files(self) -> typing.List[str]:
         raise NotImplementedError()
 
 class RemoveScriptTask(EncoderTask):
@@ -147,7 +150,7 @@ EncoderTask.BLOCKERS += (RemoveScriptTask._get_name(),)
 class RemuxTask(EncoderTask):
     resource = Resource(kind=ResourceKind.IO, priority=0)
     static_limit = 1
-    def __init__(self, encoder, video_tasks, audio_tasks):
+    def __init__(self, encoder: AbstractEncoder, video_tasks: typing.List[EncoderTask], audio_tasks: typing.List[EncoderTask]):
         EncoderTask.__init__(self, encoder)
         assert video_tasks
         self.video_inputs = list(video_tasks[-1].produced_files)
@@ -202,7 +205,7 @@ class ExtractSubtitlesTask(EncoderTask):
 class CleanupTempfiles(EncoderTask):
     resource = Resource(kind=ResourceKind.IO, priority=2)
     static_limit = 10
-    def __init__(self, encoder, remux_task):
+    def __init__(self, encoder: AbstractEncoder, remux_task: RemuxTask):
         EncoderTask.__init__(self, encoder)
         self.blockers.append(remux_task.name)
 

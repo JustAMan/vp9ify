@@ -8,6 +8,7 @@ except ImportError:
     import pickle
 import logging
 import collections
+import typing
 
 LOGGING_FORMAT = '%(asctime)s|%(levelname)s|%(message)s'
 logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
@@ -15,10 +16,10 @@ logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
 from recode.media.parsers import PARSERS
-from recode.media.base import UnknownFile, BadParameters
+from recode.media.base import UnknownFile, BadParameters, MediaEntry
 from recode.locked_state import LockedState
 
-def parse_fentry(fentry, suffix, forced_parser=None, forced_params=None):
+def parse_fentry(fentry: typing.Tuple[str, str], suffix: str, forced_parser: MediaEntry=None, forced_params: dict=None) -> MediaEntry:
     fname, fpath = fentry
     if not suffix:
         fname = os.path.splitext(fname)[0]

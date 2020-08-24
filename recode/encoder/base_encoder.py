@@ -1,31 +1,21 @@
 import tempfile
 import os
 import logging
+import typing
 
 from ..helpers import which, ensuredir, chop_tail
-from ..media.info import MediaInfo
+from ..media.info import MediaInfo, AudioInfo
+from ..media.base import MediaEntry
 
-from .base_tasks import RemoveScriptTask, RemuxTask, ExtractSubtitlesTask, CleanupTempfiles
-from .audio import ExtractStereoAudioTask, DownmixToStereoTask, NormalizeStereoTask, AudioEncodeTask
+from .abstract_encoder import AbstractEncoder
+from .base_tasks import EncoderTask, RemoveScriptTask, RemuxTask, ExtractSubtitlesTask, CleanupTempfiles
+from .audio import AudioBaseTask, ExtractStereoAudioTask, DownmixToStereoTask, NormalizeStereoTask, AudioEncodeTask
 
-class BaseEncoder(object):
-    FFMPEG = which('ffmpeg', 'FFMPEG_PATH')
-    FFMPEG_NORM = which('ffmpeg-normalize', 'FFMPEG_NORM_PATH')
-    MKVEXTRACT = which('mkvextract')
-
+class BaseEncoder(AbstractEncoder):
     NormalizeStereo = NormalizeStereoTask
     AudioEncode = AudioEncodeTask
     ExtractSubtitles = ExtractSubtitlesTask
     Remux = RemuxTask
-
-    def __init__(self, media, dest, stdout=None):
-        self.media = media
-        self.src = media.src
-        self.info = MediaInfo.parse(self.src)
-        self.tempfiles = []
-        self.patterns = []
-        self.dest = dest
-        self.stdout = stdout or None
 
     def __eq__(self, other):
         if not isinstance(other, BaseEncoder):
@@ -38,7 +28,7 @@ class BaseEncoder(object):
     def _get_tmp_prefix(self):
         return chop_tail(self.__class__.__name__, 'Encoder').lower()
 
-    def make_tempfile(self, suffix='', ext='mkv', glob_suffix=None):
+    def make_tempfile(self, suffix: str='', ext: str='mkv', glob_suffix: str=None) -> str:
         tmpdir = tempfile.gettempdir()
         ensuredir(tmpdir)
         path = os.path.join(tmpdir, '%s-%s.%s.%s' % (self._get_tmp_prefix(), self.media.unique_name, suffix, ext))
@@ -50,10 +40,10 @@ class BaseEncoder(object):
                 self.patterns.append(pattern)
         return path
 
-    def _make_video_tasks(self):
+    def _make_video_tasks(self) -> typing.List[EncoderTask]:
         raise NotImplementedError()
 
-    def _make_audio_track_tasks(self, audio_info):
+    def _make_audio_track_tasks(self, audio_info: AudioInfo) -> typing.Tuple[typing.List[AudioBaseTask], typing.List[AudioBaseTask]]:
         intermediate, output = [], []
         if audio_info.channels <= 2:
             prepare_2ch_task = ExtractStereoAudioTask(self, audio_info.track_id)
@@ -65,7 +55,7 @@ class BaseEncoder(object):
         intermediate.append(prepare_2ch_task)
         return intermediate, output
 
-    def _make_audio_tasks(self):
+    def _make_audio_tasks(self) -> typing.Tuple[typing.List[AudioBaseTask], typing.List[AudioBaseTask]]:
         intermediate, output = [], []
         for audio_info in self.info.get_audio_tracks():
             if audio_info.track_id in self.media.ignored_audio_tracks:
@@ -76,7 +66,7 @@ class BaseEncoder(object):
             output.extend(track_output)
         return intermediate, output
 
-    def make_tasks(self):
+    def make_tasks(self) -> typing.List[EncoderTask]:
         video_tasks = self._make_video_tasks()
         audio_tasks_intermediate, audio_tasks_output = self._make_audio_tasks()
         remux_task = self.Remux(self, video_tasks, audio_tasks_output)

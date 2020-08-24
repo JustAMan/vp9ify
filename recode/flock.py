@@ -10,7 +10,7 @@ if sys.platform == 'win32':
             'for developing only, be CAREFUL!\n') % os.path.basename(__file__))
             
     class FLock:
-        def __init__(self, path):
+        def __init__(self, path: str):
             pass
         def __enter__(self):
             return self
@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 else:
     import fcntl #pylint: disable=import-error
     class FLock:
-        def __init__(self, path):
+        def __init__(self, path: str):
             self.path = os.path.abspath(path)
             self.handle = None
         def __enter__(self):

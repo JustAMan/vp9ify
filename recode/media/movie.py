@@ -1,5 +1,6 @@
 import hashlib
 import os
+import typing
 
 from .base import MediaEntry, UnknownFile, BadParameters, ParameterDescription
 from ..helpers import override_fields, list_named_fields
@@ -10,7 +11,7 @@ class SingleMovie(MediaEntry):
     FORCE_NAME = 'movie'
     CONTAINER = 'webm'
 
-    def __init__(self, src, name):
+    def __init__(self, src: str, name: str):
         MediaEntry.__init__(self, src)
         self.name = name
         self.prefix = ''.join('%02x' % ch for ch in hashlib.sha256(name.encode('utf-8')).digest()[:2])
@@ -38,11 +39,11 @@ class SingleMovie(MediaEntry):
         return os.path.join(dest, '%s%s.%s' % (self.friendly_name, suffix, ext))
 
     @classmethod
-    def parse(cls, fname, fpath):
+    def parse(cls, fname: str, fpath: str) -> MediaEntry:
         return cls(fpath, fname)
 
     @classmethod
-    def parse_forced(cls, fname, fpath, params):
+    def parse_forced(cls, fname: str, fpath: str, params: typing.Dict[str, str]) -> MediaEntry:
         res = cls(fpath, params.get('name', fname))
         try:
             res.webm_options = override_fields(cls.webm_options, params)
