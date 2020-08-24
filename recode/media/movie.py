@@ -5,6 +5,7 @@ import typing
 from .base import MediaEntry, UnknownFile, BadParameters, ParameterDescription
 from ..helpers import override_fields, list_named_fields
 from ..encoder.vp9crf import WebmCrfOptions, VP9CRFEncoder
+from ..encoder.mkvcrf import MkvCrfOptions, MKVCRFEncoder, MKVCRFLowEncoder
 
 class SingleMovie(MediaEntry):
     extra_options = WebmCrfOptions(target_1080_crf=21, audio_quality=5, speed_first=4, speed_second=1)
@@ -63,3 +64,23 @@ class SingleMovie(MediaEntry):
         if targets_multiple_sources and 'name' in params:
             raise BadParameters('Can not set "name" when targeting multiple movies')
         return params
+
+class HQMovie(SingleMovie):
+    extra_options = MkvCrfOptions(crf=20, preset='slower', audio_quality=5, audio_profile=None)
+    FORCE_NAME = 'hqmovie'
+    CONTAINER = 'mkv'
+
+    def make_encode_tasks(self, dest, logpath, drop_video):
+        return MKVCRFEncoder(self, dest, logpath, drop_video).make_tasks()
+
+class LQMovie(SingleMovie):
+    extra_options = MkvCrfOptions(crf=28, preset='slow', scale_down=720, audio_quality=2, audio_profile='aac_he_v2')
+    FORCE_NAME = 'lqmovie'
+    CONTAINER = 'mkv'
+
+    def make_encode_tasks(self, dest, logpath, drop_video):
+        return MKVCRFLowEncoder(self, dest, logpath, drop_video).make_tasks()
+
+class YTLike(SingleMovie):
+    extra_options = WebmCrfOptions(target_1080_crf=32, audio_quality=4, speed_first=5, speed_second=2)
+    FORCE_NAME = 'ytlike'

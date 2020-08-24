@@ -15,11 +15,11 @@ logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
-from recode.media.parsers import PARSERS
+from recode.media.parsers import PARSERS, UPCAST
 from recode.media.base import UnknownFile, BadParameters, MediaEntry
 from recode.locked_state import LockedState
 
-def parse_fentry(fentry: typing.Tuple[str, str], suffix: str, forced_parser: MediaEntry=None, forced_params: dict=None) -> MediaEntry:
+def parse_fentry(fentry: typing.Tuple[str, str], suffix: str, forced_parser: MediaEntry=None, forced_params: dict=None, target_quality: str='') -> MediaEntry:
     fname, fpath = fentry
     if not suffix:
         fname = os.path.splitext(fname)[0]
@@ -29,7 +29,7 @@ def parse_fentry(fentry: typing.Tuple[str, str], suffix: str, forced_parser: Med
         fname = fname[:-len(suffix)]
 
     if forced_parser:
-        return forced_parser.parse_forced(fname, fpath, forced_params)
+        return [forced_parser.parse_forced(fname, fpath, forced_params)]
 
     for parser in PARSERS:
         try:
@@ -37,7 +37,11 @@ def parse_fentry(fentry: typing.Tuple[str, str], suffix: str, forced_parser: Med
         except UnknownFile:
             continue
         else:
-            return entry
+            try:
+                upcasters = UPCAST[entry.FORCE_NAME][target_quality]
+            except KeyError:
+                return [entry]
+            return [p(fname, fpath) for p in  upcasters]
     raise ValueError('Cannot parse "%s" - no handlers found' % fname)
 
 def get_files(src_list):
@@ -51,6 +55,10 @@ def get_files(src_list):
 
 
 def main():
+    upcast_choices = set()
+    for val in UPCAST.values():
+        upcast_choices |= set(val)
+
     parser = argparse.ArgumentParser(description='Transcode some videos for storing')
     parser.add_argument('source', metavar='SRC_PATH_LIST', type=str, nargs='*', help='Source items to compress')
     parser.add_argument('--dest', metavar='DEST_PATH', type=str, default='', help='Path to target directory for this type of content (e.g. not including series name)')
@@ -62,6 +70,7 @@ def main():
     parser.add_argument('--scriptize', action='store_true', help='Only generate shell scripts for encoding, do no real encoding work')
     parser.add_argument('--interactive', '-i', action='store_true', help='Be interactive: ask some questions before running')
     parser.add_argument('--drop-video', action='store_true', help='Drop video stream altogether')
+    parser.add_argument('--target-quality', choices=sorted(upcast_choices), default='default', help='Enforce quality of target if supported')
     parser.add_argument('--force-type', choices=[media_parser.FORCE_NAME for media_parser in PARSERS], help='Force media type')
     parser.add_argument('--force-params', type=str, default='', help='Additional parameters for forced media type')
     parser.add_argument('--list-params', action='store_true', help='Show parameters accepted by each media type')
@@ -127,10 +136,10 @@ def main():
         entry_types = set()
 
         for fentry in inp:
-            entry = parse_fentry(fentry, suffix, forced_parser, forced_params)
-            logging.debug('Parsed entry "%s"' % entry.full_name)
-            entries.append(entry)
-            entry_types.add(type(entry))
+            got = parse_fentry(fentry, suffix, forced_parser, forced_params, args.target_quality)
+            logging.debug('Parsed entry "%s"' % got[0].full_name)
+            entries.extend(got)
+            entry_types |= set(type(entry) for entry in got)
 
         need_reparse = False
         if not forced_parser and args.force_params:
