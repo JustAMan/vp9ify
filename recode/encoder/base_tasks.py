@@ -165,7 +165,9 @@ class RemuxTask(EncoderTask):
         return [self.media.get_target_video_path(self.dest)]
 
     def _make_command(self):
-        cmd = [self.encoder.FFMPEG, '-i'] + self.video_inputs
+        cmd = [self.encoder.FFMPEG]
+        for inp in self.video_inputs:
+            cmd.extend(['-i', inp])
     
         for audio_input in self.audio_inputs:
             cmd.extend(['-i', audio_input])
@@ -175,6 +177,9 @@ class RemuxTask(EncoderTask):
             cmd.extend(['-map', '%d:v' % idx])
         for idx in range(len(self.video_inputs), len(self.video_inputs) + len(self.audio_inputs)):
             cmd.extend(['-map', '%d:a' % idx])
+
+        idx = str(len(self.video_inputs) + len(self.audio_inputs))
+        cmd.extend(['-i', self.encoder.src, '-map_chapters', idx, '-map_metadata', idx])
 
         target = self.produced_files[0]
         ensuredir(os.path.dirname(target))
