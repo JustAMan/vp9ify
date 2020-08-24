@@ -37,8 +37,8 @@ class MediaEntry(object):
     def get_target_subtitles_path(self, dest: str, lang: str) -> str:
         return self._get_target_path(dest, '', '%s.srt' % lang)
 
-    def get_target_scriptized_path(self, dest: str) -> str:
-        return self._get_target_path(dest, '', 'sh')
+    def get_target_scriptized_path(self, dest: str, suffix: str='') -> str:
+        return self._get_target_path(dest, suffix, 'sh')
 
     @property
     def friendly_name(self) -> str:

@@ -99,7 +99,7 @@ class EncoderTask(IParallelTask):
         cmd = self._gen_command()
         if not cmd:
             return
-        script = self.media.get_target_scriptized_path(self.dest)
+        script = self.media.get_target_scriptized_path(self.dest, suffix=self.encoder.SUFFIX)
         with FLock(script + '.lock'):
             header_needed = not os.path.exists(script)
             with open_with_dir(script, 'a') as out:
@@ -138,7 +138,7 @@ class RemoveScriptTask(EncoderTask):
         pass
 
     def scriptize(self):
-        script = self.media.get_target_scriptized_path(self.dest)
+        script = self.media.get_target_scriptized_path(self.dest, suffix=self.encoder.SUFFIX)
         try:
             os.unlink(script)
         except OSError as err:
@@ -167,11 +167,9 @@ class RemuxTask(EncoderTask):
 
     def _make_command(self):
         cmd = [self.encoder.FFMPEG]
-        for inp in self.video_inputs:
+
+        for inp in (self.video_inputs + self.audio_inputs + [self.encoder.src]):
             cmd.extend(['-i', inp])
-    
-        for audio_input in self.audio_inputs:
-            cmd.extend(['-i', audio_input])
 
         cmd.extend(['-movflags', '+faststart'])
         for idx in range(len(self.video_inputs)):
@@ -180,7 +178,7 @@ class RemuxTask(EncoderTask):
             cmd.extend(['-map', '%d:a' % idx])
 
         idx = str(len(self.video_inputs) + len(self.audio_inputs))
-        cmd.extend(['-i', self.encoder.src, '-map_chapters', idx, '-map_metadata', idx])
+        cmd.extend(['-map_chapters', idx, '-map_metadata', idx])
 
         target = self.produced_files[0]
         ensuredir(os.path.dirname(target))
