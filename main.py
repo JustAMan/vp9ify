@@ -13,7 +13,7 @@ import typing
 LOGGING_FORMAT = '%(asctime)s|%(levelname)s|%(message)s'
 logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
-from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
+from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir, confirm_yesno
 from recode.tasks import Executor
 from recode.media.parsers import PARSERS, ALL_PARSERS, UPCAST
 from recode.media.base import UnknownFile, BadParameters, MediaEntry
@@ -52,7 +52,6 @@ def get_files(src_list):
 '''.splitlines()
     lst = STUB if sys.platform == 'win32' else src_list
     return tuple((os.path.basename(fname), fname) for fname in lst)
-
 
 def main():
     upcast_choices = set()
@@ -161,10 +160,11 @@ def main():
 
         if need_reparse:
             entries = []
+
             for fentry in inp:
-                entry = parse_fentry(fentry, suffix, forced_parser, forced_params)
-                logging.debug('Parsed entry "%s"' % entry.full_name)
-                entries.append(entry)
+                got = parse_fentry(fentry, suffix, forced_parser, forced_params, args.target_quality)
+                logging.debug('Parsed entry "%s"' % got[0].full_name)
+                entries.extend(got)
 
         entries.sort(key=lambda fe: fe.comparing_key)
         if args.interactive:
@@ -178,8 +178,10 @@ def main():
             except IOError:
                 tasks = []
                 logging.info('Resume file "%s" does not exist, starting from scratch' % resume_file)
+                state_existed = False
             else:
                 logging.info('Resume file "%s" exists, appending' % resume_file)
+                state_existed = True
             tasks.extend(new_tasks)
             state.write(tasks)
 
@@ -188,6 +190,9 @@ def main():
         Executor(state, scriptize=True).execute()
         logging.info('Scriptizing stopped')
     elif not args.nostart:
+        if state_existed and not confirm_yesno('State file already exists, are you sure encoding is not running in the background', False):
+            logging.info('State file already exists, probably recoding is running in the background. Appended new tasks, now exiting')
+            return
         logging.info('Recoding started')
         Executor(state).execute()
         logging.info('Recoding stopped')
