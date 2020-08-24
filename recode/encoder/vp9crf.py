@@ -95,3 +95,8 @@ class VP9CRFEncoder(BaseEncoder):
 
     def _make_video_tasks(self):
         return [Vp9CrfEncode1PassTask(self), Vp9CrfEncode2PassTask(self)]
+
+class VP9CRFYTEncoder(VP9CRFEncoder):
+    AudioEncode = None # do not keep non-normalized audio tracks
+    ExtractSubtitles = None
+    SUFFIX = 'YT'

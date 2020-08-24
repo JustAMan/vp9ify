@@ -15,7 +15,7 @@ logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
 from recode.helpers import NUM_THREADS, which, get_suffix, open_with_dir, ensuredir
 from recode.tasks import Executor
-from recode.media.parsers import PARSERS, UPCAST
+from recode.media.parsers import PARSERS, ALL_PARSERS, UPCAST
 from recode.media.base import UnknownFile, BadParameters, MediaEntry
 from recode.locked_state import LockedState
 
@@ -71,14 +71,14 @@ def main():
     parser.add_argument('--interactive', '-i', action='store_true', help='Be interactive: ask some questions before running')
     parser.add_argument('--drop-video', action='store_true', help='Drop video stream altogether')
     parser.add_argument('--target-quality', choices=sorted(upcast_choices), default='default', help='Enforce quality of target if supported')
-    parser.add_argument('--force-type', choices=[media_parser.FORCE_NAME for media_parser in PARSERS], help='Force media type')
+    parser.add_argument('--force-type', choices=[media_parser.FORCE_NAME for media_parser in ALL_PARSERS], help='Force media type')
     parser.add_argument('--force-params', type=str, default='', help='Additional parameters for forced media type')
     parser.add_argument('--list-params', action='store_true', help='Show parameters accepted by each media type')
     args = parser.parse_args()
 
     if args.list_params:
         print('Accepted parameters to be passed via --force-params:')
-        for media_parser in PARSERS:
+        for media_parser in ALL_PARSERS:
             print('[--force-type = %s]' % media_parser.FORCE_NAME)
             params = media_parser.describe_parameters()
             maxkeylen = max(len(p.key) for p in params)
@@ -99,7 +99,7 @@ def main():
 
     forced_parser, forced_params = None, None
     if args.force_type:
-        forced_parser = [media_parser for media_parser in PARSERS if media_parser.FORCE_NAME == args.force_type][0]
+        forced_parser = [media_parser for media_parser in ALL_PARSERS if media_parser.FORCE_NAME == args.force_type][0]
         if args.force_params:
             try:
                 forced_params = forced_parser.parse_parameters(args.force_params, targets_multiple_sources=len(args.source) > 1)

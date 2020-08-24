@@ -4,13 +4,14 @@ import typing
 
 from .base import MediaEntry, UnknownFile, BadParameters, ParameterDescription
 from ..helpers import override_fields, list_named_fields
-from ..encoder.vp9crf import WebmCrfOptions, VP9CRFEncoder
+from ..encoder.vp9crf import WebmCrfOptions, VP9CRFEncoder, VP9CRFYTEncoder
 from ..encoder.mkvcrf import MkvCrfOptions, MKVCRFEncoder, MKVCRFLowEncoder
 
-class SingleMovie(MediaEntry):
-    extra_options = WebmCrfOptions(target_1080_crf=21, audio_quality=5, speed_first=4, speed_second=1)
-    FORCE_NAME = 'movie'
-    CONTAINER = 'webm'
+class BaseMovie(MediaEntry):
+    extra_options = None
+    FORCE_NAME = 'basemovie'
+    CONTAINER = 'nothing'
+    ENCODER = None
 
     def __init__(self, src: str, name: str):
         MediaEntry.__init__(self, src)
@@ -34,7 +35,7 @@ class SingleMovie(MediaEntry):
         return self.name.lower()
 
     def make_encode_tasks(self, dest, logpath, drop_video):
-        return VP9CRFEncoder(self, dest, logpath, drop_video).make_tasks()
+        return self.ENCODER(self, dest, logpath, drop_video).make_tasks() #pylint: disable=not-callable
 
     def _get_target_path(self, dest, suffix, ext):
         return os.path.join(dest, '%s%s.%s' % (self.friendly_name, suffix, ext))
@@ -65,22 +66,26 @@ class SingleMovie(MediaEntry):
             raise BadParameters('Can not set "name" when targeting multiple movies')
         return params
 
-class HQMovie(SingleMovie):
+class SingleMovie(BaseMovie):
+    extra_options = WebmCrfOptions(target_1080_crf=21, audio_quality=5, speed_first=4, speed_second=1)
+    FORCE_NAME = 'movie'
+    CONTAINER = 'webm'
+    ENCODER = VP9CRFEncoder
+
+class HQMovie(BaseMovie):
     extra_options = MkvCrfOptions(crf=20, preset='slower', audio_quality=5, audio_profile=None)
     FORCE_NAME = 'hqmovie'
     CONTAINER = 'mkv'
+    ENCODER = MKVCRFEncoder
 
-    def make_encode_tasks(self, dest, logpath, drop_video):
-        return MKVCRFEncoder(self, dest, logpath, drop_video).make_tasks()
-
-class LQMovie(SingleMovie):
+class LQMovie(BaseMovie):
     extra_options = MkvCrfOptions(crf=28, preset='slow', scale_down=720, audio_quality=2, audio_profile='aac_he_v2')
     FORCE_NAME = 'lqmovie'
-    CONTAINER = 'mkv'
+    CONTAINER = 'mp4'
+    ENCODER = MKVCRFLowEncoder
 
-    def make_encode_tasks(self, dest, logpath, drop_video):
-        return MKVCRFLowEncoder(self, dest, logpath, drop_video).make_tasks()
-
-class YTLike(SingleMovie):
+class YTLike(BaseMovie):
     extra_options = WebmCrfOptions(target_1080_crf=32, audio_quality=4, speed_first=5, speed_second=2)
     FORCE_NAME = 'ytlike'
+    CONTAINER = 'webm'
+    ENCODER = VP9CRFYTEncoder

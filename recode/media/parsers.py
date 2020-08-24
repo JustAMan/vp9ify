@@ -1,7 +1,9 @@
 from .series import SeriesEpisode
 from .movie import SingleMovie, HQMovie, LQMovie, YTLike
 
-PARSERS = [SeriesEpisode, SingleMovie, HQMovie, LQMovie, YTLike]
+PARSERS = [SeriesEpisode, SingleMovie]
+ALL_PARSERS = [SeriesEpisode, SingleMovie, HQMovie, LQMovie, YTLike]
+
 UPCAST = {
     SingleMovie.FORCE_NAME: {
         'default': [SingleMovie],
