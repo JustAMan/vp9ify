@@ -76,7 +76,7 @@ class NormalizeStereoTask(AudioBaseTask):
         bitrate = ['-b:a', options.bitrate] if options.bitrate else []
         extra = ['-e=%s' % subprocess.list2cmdline(str(x) for x in options.extra)] if options.extra else []
         return [self.encoder.FFMPEG_NORM, self.produced_files[0],
-                '-c:a', options.name] + bitrate + extra + ['--dual-mono',
+                '-c:a', options.name, '--progress'] + bitrate + extra + ['--dual-mono',
                 '-t', self.media.LUFS_LEVEL, '-f', '-ar', self.media.AUDIO_FREQ,
                 '-vn', '-o'] + self.produced_files
 
