@@ -55,7 +55,7 @@ class BaseMovie(MediaEntry):
 
     @classmethod
     def describe_parameters(cls):
-        res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.extra_options)]
+        res = [ParameterDescription(group=cls.CONTAINER, key=key, kind=value, help='') for (key, value) in list_named_fields(cls.extra_options)]
         res.append(ParameterDescription(group='', key='name', kind='string', help='Movie name'))
         return res
 
@@ -73,7 +73,7 @@ class SingleMovie(BaseMovie):
     ENCODER = VP9CRFEncoder
 
 class HQMovie(BaseMovie):
-    extra_options = MkvCrfOptions(crf=20, preset='slower', scale_down=None, audio_quality=5, audio_profile=None)
+    extra_options = MkvCrfOptions(crf=20, preset='slower', scale_down=0, audio_quality=5, audio_profile='')
     FORCE_NAME = 'hqmovie'
     CONTAINER = 'mkv'
     ENCODER = MKVCRFEncoder
