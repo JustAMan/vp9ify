@@ -73,7 +73,7 @@ class SingleMovie(BaseMovie):
     ENCODER = VP9CRFEncoder
 
 class HQMovie(BaseMovie):
-    extra_options = MkvCrfOptions(crf=20, preset='slower', audio_quality=5, audio_profile=None)
+    extra_options = MkvCrfOptions(crf=20, preset='slower', scale_down=None, audio_quality=5, audio_profile=None)
     FORCE_NAME = 'hqmovie'
     CONTAINER = 'mkv'
     ENCODER = MKVCRFEncoder
