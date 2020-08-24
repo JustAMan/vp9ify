@@ -234,3 +234,8 @@ class CleanupTempfiles(EncoderTask):
         if not any((self.encoder.tempfiles, self.encoder.patterns)):
             return []
         return ['rm', '-f'] + self.encoder.tempfiles + self.encoder.patterns
+
+class VideoEncodeTask(EncoderTask):
+    def can_run(self, batch_tasks):
+        all_transcodes = [t for t in batch_tasks if isinstance(t, VideoEncodeTask)]
+        return all_transcodes[0] == self and EncoderTask.can_run(self, batch_tasks)

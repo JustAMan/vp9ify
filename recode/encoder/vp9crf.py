@@ -4,29 +4,25 @@ import typing
 WebmCrfOptions = collections.namedtuple('WebmCrfOptions', 'target_1080_crf audio_quality speed_first speed_second')
 
 from ..tasks import IParallelTask, Resource, ResourceKind
-from .base_tasks import EncoderTask
+from .base_tasks import EncoderTask, VideoEncodeTask
 from .audio import NormalizeStereoTask, AudioEncodeTask, AudioCodecOptions
 from .base_encoder import BaseEncoder
 
 class VorbisNormalize(NormalizeStereoTask):
     def _get_codec_options(self):
-        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.webm_options.audio_quality))
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.extra_options.audio_quality))
 
 class VorbisEncode(AudioEncodeTask):
     def _get_codec_options(self):
-        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.webm_options.audio_quality))
+        return AudioCodecOptions(name='libvorbis', bitrate=None, extra=('-aq', self.media.extra_options.audio_quality))
 
-class VideoEncodeTask(EncoderTask):
+class Vp9EncodeTask(VideoEncodeTask):
     def __init__(self, encoder: BaseEncoder, is_first_pass: bool):
-        EncoderTask.__init__(self, encoder)
+        VideoEncodeTask.__init__(self, encoder)
         self.is_first_pass = is_first_pass
 
     def _get_compare_attrs(self):
         return EncoderTask._get_compare_attrs(self) + [self.is_first_pass]
-
-    def can_run(self, batch_tasks):
-        all_transcodes = [t for t in batch_tasks if isinstance(t, VideoEncodeTask)]
-        return all_transcodes[0] == self and EncoderTask.can_run(self, batch_tasks)
 
     @property
     def produced_files(self):
@@ -34,9 +30,9 @@ class VideoEncodeTask(EncoderTask):
 
     def _make_command(self):
         crf = (self.encoder.CRF_PROP * self.info.get_video_diagonal() ** self.encoder.CRF_POW) * \
-                self.media.webm_options.target_1080_crf / self.encoder.CRF_VP9_1080P
+                self.media.extra_options.target_1080_crf / self.encoder.CRF_VP9_1080P
         qmax = crf * self.encoder.QMAX_COEFF
-        speed = self.media.webm_options.speed_first if self.is_first_pass else self.media.webm_options.speed_second
+        speed = self.media.extra_options.speed_first if self.is_first_pass else self.media.extra_options.speed_second
         passno = 1 if self.is_first_pass else 2
 
         return [self.encoder.FFMPEG, '-i', self.media.src, '-g', 240,
@@ -44,21 +40,21 @@ class VideoEncodeTask(EncoderTask):
                '-qmax', int(qmax), '-b:v', 0, '-quality', 'good', '-speed', speed, '-pass', passno,
                '-passlogfile', self.encoder.make_tempfile('ffmpeg2pass', 'log', '-*.log'), '-y'] + self.produced_files
 
-class Vp9CrfEncode1PassTask(VideoEncodeTask):
+class Vp9CrfEncode1PassTask(Vp9EncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=1)
     static_limit = 5
     def __init__(self, encoder: BaseEncoder):
-        VideoEncodeTask.__init__(self, encoder, True)
+        Vp9EncodeTask.__init__(self, encoder, True)
     def get_limit(self, candidate_tasks, running_tasks):
         pass2count = sum(1 for t in candidate_tasks if isinstance(t, Vp9CrfEncode2PassTask))
         need_lookahead = max(0, Vp9CrfEncode2PassTask.static_limit - pass2count)
         return min(self.static_limit, Vp9CrfEncode2PassTask.static_limit + need_lookahead)
 
-class Vp9CrfEncode2PassTask(VideoEncodeTask):
+class Vp9CrfEncode2PassTask(Vp9EncodeTask):
     resource = Resource(kind=ResourceKind.CPU, priority=0)
     static_limit = 4
     def __init__(self, encoder: BaseEncoder):
-        VideoEncodeTask.__init__(self, encoder, False)
+        Vp9EncodeTask.__init__(self, encoder, False)
 
 class VP9CRFEncoder(BaseEncoder):
     '''

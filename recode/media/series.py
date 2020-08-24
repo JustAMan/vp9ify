@@ -9,7 +9,7 @@ from ..helpers import override_fields, list_named_fields
 from ..encoder.vp9crf import VP9CRFEncoder, WebmCrfOptions
 
 class SeriesEpisode(MediaEntry):
-    webm_options = WebmCrfOptions(target_1080_crf=24, audio_quality=4, speed_first=5, speed_second=2)
+    extra_options = WebmCrfOptions(target_1080_crf=24, audio_quality=4, speed_first=5, speed_second=2)
     FORCE_NAME = 'series'
     CONTAINER = 'webm'
     STRIP_SUFFIX = True
@@ -68,13 +68,13 @@ class SeriesEpisode(MediaEntry):
         series = params.get('name', series)
         res = cls(fpath, series, season, episode, name)
         try:
-            res.webm_options = override_fields(cls.webm_options, params)
+            res.extra_options = override_fields(cls.extra_options, params)
         except ValueError:
             raise BadParameters('Got not an integer value trying to override int parameter')
         return res
 
     @classmethod
     def describe_parameters(cls):
-        res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.webm_options)]
+        res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.extra_options)]
         res.append(ParameterDescription(group='', key='name', kind='string', help='Series name'))
         return res
