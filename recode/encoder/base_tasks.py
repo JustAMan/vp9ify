@@ -163,7 +163,7 @@ class RemuxTask(EncoderTask):
 
     @property
     def produced_files(self):
-        return [self.media.get_target_video_path(self.dest)]
+        return [self.media.get_target_video_path(self.dest, suffix=self.encoder.SUFFIX)]
 
     def _make_command(self):
         cmd = [self.encoder.FFMPEG]

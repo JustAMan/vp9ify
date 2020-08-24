@@ -3,7 +3,6 @@ import os
 import logging
 import typing
 
-from ..helpers import which, ensuredir, chop_tail
 from ..media.info import MediaInfo, AudioInfo
 from ..media.base import MediaEntry
 
@@ -24,21 +23,6 @@ class BaseEncoder(AbstractEncoder):
 
     def __ne__(self, other):
         return not (self == other)
-
-    def _get_tmp_prefix(self):
-        return chop_tail(self.__class__.__name__, 'Encoder').lower()
-
-    def make_tempfile(self, suffix: str='', ext: str='mkv', glob_suffix: str=None) -> str:
-        tmpdir = tempfile.gettempdir()
-        ensuredir(tmpdir)
-        path = os.path.join(tmpdir, '%s-%s.%s.%s' % (self._get_tmp_prefix(), self.media.unique_name, suffix, ext))
-        if path not in self.tempfiles:
-            self.tempfiles.append(path)
-        if glob_suffix:
-            pattern = path + glob_suffix
-            if pattern not in self.patterns:
-                self.patterns.append(pattern)
-        return path
 
     def _make_video_tasks(self) -> typing.List[EncoderTask]:
         raise NotImplementedError()
