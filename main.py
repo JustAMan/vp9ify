@@ -61,6 +61,7 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Produce some additional debug output')
     parser.add_argument('--scriptize', action='store_true', help='Only generate shell scripts for encoding, do no real encoding work')
     parser.add_argument('--interactive', '-i', action='store_true', help='Be interactive: ask some questions before running')
+    parser.add_argument('--drop-video', action='store_true', help='Drop video stream altogether')
     parser.add_argument('--force-type', choices=[media_parser.FORCE_NAME for media_parser in PARSERS], help='Force media type')
     parser.add_argument('--force-params', type=str, default='', help='Additional parameters for forced media type')
     parser.add_argument('--list-params', action='store_true', help='Show parameters accepted by each media type')
@@ -161,7 +162,7 @@ def main():
             for entry in entries:
                 entry.interact()
 
-        new_tasks = [entry.make_encode_tasks(os.path.abspath(args.dest), logpath or None) for entry in entries]
+        new_tasks = [entry.make_encode_tasks(os.path.abspath(args.dest), logpath or None, args.drop_video) for entry in entries]
         with state:
             try:
                 tasks = state.read()

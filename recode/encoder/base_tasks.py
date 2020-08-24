@@ -152,9 +152,10 @@ class RemuxTask(EncoderTask):
     static_limit = 1
     def __init__(self, encoder: AbstractEncoder, video_tasks: typing.List[EncoderTask], audio_tasks: typing.List[EncoderTask]):
         EncoderTask.__init__(self, encoder)
-        assert video_tasks
-        self.video_inputs = list(video_tasks[-1].produced_files)
-        assert self.video_inputs
+        if video_tasks:
+            self.video_inputs = list(video_tasks[-1].produced_files)
+        else:
+            self.video_inputs = []
         self.audio_inputs = []
         for task in audio_tasks:
             self.audio_inputs.extend(task.produced_files)

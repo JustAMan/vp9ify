@@ -38,8 +38,8 @@ class SeriesEpisode(MediaEntry):
     def comparing_key(self):
         return (self.series, self.season, self.episode)
 
-    def make_encode_tasks(self, dest, logpath):
-        return VP9CRFEncoder(self, dest, logpath).make_tasks()
+    def make_encode_tasks(self, dest, logpath, drop_video):
+        return VP9CRFEncoder(self, dest, logpath, drop_video).make_tasks()
 
     def _get_target_path(self, dest, suffix, ext):
         return os.path.join(dest, self.series, 'S%02d' % self.season, '%s%s.%s' % (self.friendly_name, suffix, ext))

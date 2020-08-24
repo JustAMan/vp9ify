@@ -67,7 +67,7 @@ class BaseEncoder(AbstractEncoder):
         return intermediate, output
 
     def make_tasks(self) -> typing.List[EncoderTask]:
-        video_tasks = self._make_video_tasks()
+        video_tasks = self._make_video_tasks() if not self.drop_video else []
         audio_tasks_intermediate, audio_tasks_output = self._make_audio_tasks()
         remux_task = self.Remux(self, video_tasks, audio_tasks_output)
         extract_subs = [self.ExtractSubtitles(self)] if self.ExtractSubtitles else []

@@ -32,8 +32,8 @@ class SingleMovie(MediaEntry):
     def comparing_key(self):
         return self.name.lower()
 
-    def make_encode_tasks(self, dest, logpath):
-        return VP9CRFEncoder(self, dest, logpath).make_tasks()
+    def make_encode_tasks(self, dest, logpath, drop_video):
+        return VP9CRFEncoder(self, dest, logpath, drop_video).make_tasks()
 
     def _get_target_path(self, dest, suffix, ext):
         return os.path.join(dest, '%s%s.%s' % (self.friendly_name, suffix, ext))

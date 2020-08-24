@@ -56,7 +56,7 @@ class MediaEntry(object):
     def comparing_key(self):
         raise NotImplementedError()
 
-    def make_encode_tasks(self, dest: str, logpath: str):
+    def make_encode_tasks(self, dest: str, logpath: str, drop_video: bool=False):
         raise NotImplementedError()
 
     def __eq__(self, other):

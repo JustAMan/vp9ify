@@ -8,7 +8,7 @@ class AbstractEncoder(object):
     FFMPEG_NORM = which('ffmpeg-normalize', 'FFMPEG_NORM_PATH')
     MKVEXTRACT = which('mkvextract')
 
-    def __init__(self, media: MediaEntry, dest: str, stdout: str=None):
+    def __init__(self, media: MediaEntry, dest: str, stdout: str=None, drop_video: bool=False):
         self.media = media
         self.src = media.src
         self.info = MediaInfo.parse(self.src)
@@ -16,3 +16,4 @@ class AbstractEncoder(object):
         self.patterns = []
         self.dest = dest
         self.stdout = stdout or None
+        self.drop_video = drop_video
