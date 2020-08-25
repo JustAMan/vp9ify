@@ -21,10 +21,16 @@ def has_fdk(encoder: BaseEncoder) -> bool:
     return _HAS_FDK
 
 def _get_aac_options(task: AudioBaseTask):
-    extra = ['-vbr', task.media.extra_options.audio_quality, '-movflags', '+faststart']
-    if task.media.extra_options.audio_profile and has_fdk(task.encoder):
-        extra.extend(['-profile:a', task.media.extra_options.audio_profile, '-cutoff', task.media.AUDIO_FREQ])
-    return AudioCodecOptions(name='libfdk_aac' if has_fdk(task.encoder) else 'aac', bitrate=None, extra=extra)
+    if has_fdk(task.encoder):
+        extra = ['-vbr', task.media.extra_options.audio_quality, '-cutoff', min(20000, task.media.AUDIO_FREQ)]
+        if task.media.extra_options.audio_profile:
+            extra.extend(['-profile:a', task.media.extra_options.audio_profile])
+        bitrate = None
+    else:
+        # "reversed" formula from FDK AAC VBR: bitrate = (26 + 10 * quality ** 1.5) * channel_count
+        extra = []
+        bitrate = int((26 + 10 * (task.media.extra_options.audio_quality or 5) **1.5) * task.info.get_audio_channels()[task.track_id])
+    return AudioCodecOptions(name='libfdk_aac' if has_fdk(task.encoder) else 'aac', bitrate=bitrate, extra=extra)
 
 class AacNormalize(NormalizeStereoTask):
     _get_codec_options = _get_aac_options
