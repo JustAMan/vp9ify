@@ -159,10 +159,11 @@ def list_named_fields(named: typing.NamedTuple) -> typing.List[typing.Tuple[str,
     key_mapping = {field.lower(): field for field in named._fields}
     result = []
     for key, attr_name in sorted(key_mapping.items()):
-        if isinstance(getattr(named, attr_name), int):
-            result.append((key, 'integer'))
-        elif isinstance(getattr(named, attr_name), str):
-            result.append((key, 'string'))
+        value = getattr(named, attr_name)
+        if isinstance(value, int):
+            result.append((key, 'integer', value))
+        elif isinstance(value, str):
+            result.append((key, 'string', value))
         else:
-            result.append((key, 'unsupported'))
+            result.append((key, 'unsupported', value))
     return result

@@ -75,6 +75,6 @@ class SeriesEpisode(MediaEntry):
 
     @classmethod
     def describe_parameters(cls):
-        res = [ParameterDescription(group='webm', key=key, kind=value, help='') for (key, value) in list_named_fields(cls.extra_options)]
+        res = [ParameterDescription(group=cls.CONTAINER, key=key, kind=kind, help='(default: %s)' % value) for (key, kind, value) in list_named_fields(cls.extra_options)]
         res.append(ParameterDescription(group='', key='name', kind='string', help='Series name'))
         return res

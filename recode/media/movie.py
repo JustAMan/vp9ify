@@ -55,7 +55,7 @@ class BaseMovie(MediaEntry):
 
     @classmethod
     def describe_parameters(cls):
-        res = [ParameterDescription(group=cls.CONTAINER, key=key, kind=value, help='') for (key, value) in list_named_fields(cls.extra_options)]
+        res = [ParameterDescription(group=cls.CONTAINER, key=key, kind=kind, help='(default: %s)' % value) for (key, kind, value) in list_named_fields(cls.extra_options)]
         res.append(ParameterDescription(group='', key='name', kind='string', help='Movie name'))
         return res
 
@@ -79,7 +79,7 @@ class HQMovie(BaseMovie):
     ENCODER = MKVCRFEncoder
 
 class LQMovie(BaseMovie):
-    extra_options = MkvCrfOptions(crf=28, preset='slow', scale_down=720, audio_quality=2, audio_profile='aac_he_v2')
+    extra_options = MkvCrfOptions(crf=30, preset='slow', scale_down=720, audio_quality=2, audio_profile='aac_he_v2')
     FORCE_NAME = 'lqmovie'
     CONTAINER = 'mp4'
     ENCODER = MKVCRFLowEncoder
